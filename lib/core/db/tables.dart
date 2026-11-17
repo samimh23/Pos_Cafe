@@ -39,6 +39,9 @@ class Products extends Table {
   TextColumn get modifierGroupsJson => text().withDefault(const Constant('[]'))();
   BoolColumn get available => boolean().withDefault(const Constant(true))();
 
+  /// Order chosen by the owner (v3).
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

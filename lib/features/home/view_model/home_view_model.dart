@@ -18,7 +18,7 @@ final productsProvider = StreamProvider.family<List<ProductRow>, String>((ref, c
   final db = ref.watch(databaseProvider);
   return (db.select(db.products)
         ..where((t) => t.categoryId.equals(categoryId) & t.available.equals(true))
-        ..orderBy([(t) => OrderingTerm.asc(t.name)]))
+        ..orderBy([(t) => OrderingTerm.asc(t.sortOrder), (t) => OrderingTerm.asc(t.name)]))
       .watch();
 });
 

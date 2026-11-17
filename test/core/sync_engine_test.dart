@@ -98,4 +98,34 @@ void main() {
     await engine.pullMenu();
     expect((await db.select(db.products).getSingle()).price, 1300);
   });
+
+  test('owner deletions reach the POS: deleted product and category are removed', () async {
+    api.products.add({...api.products.first, 'id': 'p2', 'name': 'Thé', 'sortOrder': 2});
+    await engine.pullMenu();
+    expect(await db.select(db.products).get(), hasLength(2));
+
+    api.changedProducts = [
+      {...api.products.first, 'price': 1400, 'deleted': false},
+      {...api.products.last, 'deleted': true},
+    ];
+    await engine.pullMenu();
+    final left = await db.select(db.products).get();
+    expect(left.map((p) => (p.name, p.price)), [('Express', 1400)]);
+
+    api.changedProducts = [
+      {...api.products.first, 'deleted': true},
+    ];
+    api.changedCategories = [
+      {...api.categories.first, 'deleted': true},
+    ];
+    await engine.pullMenu();
+    expect(await db.select(db.products).get(), isEmpty);
+    expect(await db.select(db.categories).get(), isEmpty);
+  });
+
+  test('product order from the owner is saved', () async {
+    api.products.first['sortOrder'] = 7;
+    await engine.pullMenu();
+    expect((await db.select(db.products).getSingle()).sortOrder, 7);
+  });
 }

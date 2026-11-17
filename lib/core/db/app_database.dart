@@ -13,7 +13,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Bump when tables change, and add the upgrade step below.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -24,6 +24,10 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(orders);
         await m.createTable(orderLines);
         await m.createTable(payments);
+      }
+      if (from < 3) {
+        // v3: product order chosen by the owner
+        await m.addColumn(products, products.sortOrder);
       }
     },
   );

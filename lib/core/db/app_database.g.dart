@@ -612,6 +612,18 @@ class $ProductsTable extends Products
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -622,6 +634,7 @@ class $ProductsTable extends Products
     station,
     modifierGroupsJson,
     available,
+    sortOrder,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -691,6 +704,12 @@ class $ProductsTable extends Products
         available.isAcceptableOrUnknown(data['available']!, _availableMeta),
       );
     }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
     return context;
   }
 
@@ -740,6 +759,11 @@ class $ProductsTable extends Products
             DriftSqlType.bool,
             data['${effectivePrefix}available'],
           )!,
+      sortOrder:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}sort_order'],
+          )!,
     );
   }
 
@@ -762,6 +786,9 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
   final String station;
   final String modifierGroupsJson;
   final bool available;
+
+  /// Order chosen by the owner (v3).
+  final int sortOrder;
   const ProductRow({
     required this.id,
     required this.categoryId,
@@ -771,6 +798,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
     required this.station,
     required this.modifierGroupsJson,
     required this.available,
+    required this.sortOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -783,6 +811,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
     map['station'] = Variable<String>(station);
     map['modifier_groups_json'] = Variable<String>(modifierGroupsJson);
     map['available'] = Variable<bool>(available);
+    map['sort_order'] = Variable<int>(sortOrder);
     return map;
   }
 
@@ -796,6 +825,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
       station: Value(station),
       modifierGroupsJson: Value(modifierGroupsJson),
       available: Value(available),
+      sortOrder: Value(sortOrder),
     );
   }
 
@@ -815,6 +845,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
         json['modifierGroupsJson'],
       ),
       available: serializer.fromJson<bool>(json['available']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
   }
   @override
@@ -829,6 +860,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
       'station': serializer.toJson<String>(station),
       'modifierGroupsJson': serializer.toJson<String>(modifierGroupsJson),
       'available': serializer.toJson<bool>(available),
+      'sortOrder': serializer.toJson<int>(sortOrder),
     };
   }
 
@@ -841,6 +873,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
     String? station,
     String? modifierGroupsJson,
     bool? available,
+    int? sortOrder,
   }) => ProductRow(
     id: id ?? this.id,
     categoryId: categoryId ?? this.categoryId,
@@ -850,6 +883,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
     station: station ?? this.station,
     modifierGroupsJson: modifierGroupsJson ?? this.modifierGroupsJson,
     available: available ?? this.available,
+    sortOrder: sortOrder ?? this.sortOrder,
   );
   ProductRow copyWithCompanion(ProductsCompanion data) {
     return ProductRow(
@@ -865,6 +899,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
               ? data.modifierGroupsJson.value
               : this.modifierGroupsJson,
       available: data.available.present ? data.available.value : this.available,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
 
@@ -878,7 +913,8 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
           ..write('vatRateBp: $vatRateBp, ')
           ..write('station: $station, ')
           ..write('modifierGroupsJson: $modifierGroupsJson, ')
-          ..write('available: $available')
+          ..write('available: $available, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
@@ -893,6 +929,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
     station,
     modifierGroupsJson,
     available,
+    sortOrder,
   );
   @override
   bool operator ==(Object other) =>
@@ -905,7 +942,8 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
           other.vatRateBp == this.vatRateBp &&
           other.station == this.station &&
           other.modifierGroupsJson == this.modifierGroupsJson &&
-          other.available == this.available);
+          other.available == this.available &&
+          other.sortOrder == this.sortOrder);
 }
 
 class ProductsCompanion extends UpdateCompanion<ProductRow> {
@@ -917,6 +955,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
   final Value<String> station;
   final Value<String> modifierGroupsJson;
   final Value<bool> available;
+  final Value<int> sortOrder;
   final Value<int> rowid;
   const ProductsCompanion({
     this.id = const Value.absent(),
@@ -927,6 +966,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     this.station = const Value.absent(),
     this.modifierGroupsJson = const Value.absent(),
     this.available = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ProductsCompanion.insert({
@@ -938,6 +978,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     this.station = const Value.absent(),
     this.modifierGroupsJson = const Value.absent(),
     this.available = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        categoryId = Value(categoryId),
@@ -952,6 +993,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     Expression<String>? station,
     Expression<String>? modifierGroupsJson,
     Expression<bool>? available,
+    Expression<int>? sortOrder,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -964,6 +1006,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
       if (modifierGroupsJson != null)
         'modifier_groups_json': modifierGroupsJson,
       if (available != null) 'available': available,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -977,6 +1020,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     Value<String>? station,
     Value<String>? modifierGroupsJson,
     Value<bool>? available,
+    Value<int>? sortOrder,
     Value<int>? rowid,
   }) {
     return ProductsCompanion(
@@ -988,6 +1032,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
       station: station ?? this.station,
       modifierGroupsJson: modifierGroupsJson ?? this.modifierGroupsJson,
       available: available ?? this.available,
+      sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1019,6 +1064,9 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     if (available.present) {
       map['available'] = Variable<bool>(available.value);
     }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1036,6 +1084,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
           ..write('station: $station, ')
           ..write('modifierGroupsJson: $modifierGroupsJson, ')
           ..write('available: $available, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3807,6 +3856,7 @@ typedef $$ProductsTableCreateCompanionBuilder =
       Value<String> station,
       Value<String> modifierGroupsJson,
       Value<bool> available,
+      Value<int> sortOrder,
       Value<int> rowid,
     });
 typedef $$ProductsTableUpdateCompanionBuilder =
@@ -3819,6 +3869,7 @@ typedef $$ProductsTableUpdateCompanionBuilder =
       Value<String> station,
       Value<String> modifierGroupsJson,
       Value<bool> available,
+      Value<int> sortOrder,
       Value<int> rowid,
     });
 
@@ -3868,6 +3919,11 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<bool> get available => $composableBuilder(
     column: $table.available,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3920,6 +3976,11 @@ class $$ProductsTableOrderingComposer
     column: $table.available,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ProductsTableAnnotationComposer
@@ -3958,6 +4019,9 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<bool> get available =>
       $composableBuilder(column: $table.available, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 }
 
 class $$ProductsTableTableManager
@@ -3999,6 +4063,7 @@ class $$ProductsTableTableManager
                 Value<String> station = const Value.absent(),
                 Value<String> modifierGroupsJson = const Value.absent(),
                 Value<bool> available = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ProductsCompanion(
                 id: id,
@@ -4009,6 +4074,7 @@ class $$ProductsTableTableManager
                 station: station,
                 modifierGroupsJson: modifierGroupsJson,
                 available: available,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4021,6 +4087,7 @@ class $$ProductsTableTableManager
                 Value<String> station = const Value.absent(),
                 Value<String> modifierGroupsJson = const Value.absent(),
                 Value<bool> available = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ProductsCompanion.insert(
                 id: id,
@@ -4031,6 +4098,7 @@ class $$ProductsTableTableManager
                 station: station,
                 modifierGroupsJson: modifierGroupsJson,
                 available: available,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           withReferenceMapper:

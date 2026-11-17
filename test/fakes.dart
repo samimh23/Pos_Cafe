@@ -71,8 +71,12 @@ class FakePosApi implements PosApi {
     _maybeFail();
     return PullResponse.fromJson({
       'cursor': '2026-11-17T10:00:00.000Z',
-      'categories': cursor == null ? categories : <Map<String, dynamic>>[],
-      'products': cursor == null ? products : <Map<String, dynamic>>[],
+      'categories': cursor == null ? categories : changedCategories,
+      'products': cursor == null ? products : changedProducts,
     });
   }
+
+  /// What the next pull (with a cursor) returns — e.g. a price change or `deleted: true`.
+  List<Map<String, dynamic>> changedCategories = [];
+  List<Map<String, dynamic>> changedProducts = [];
 }

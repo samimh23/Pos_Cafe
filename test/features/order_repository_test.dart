@@ -18,6 +18,7 @@ ProductRow product(String id, String name, int price, {int vat = 1900}) => Produ
   station: 'bar',
   modifierGroupsJson: '[]',
   available: true,
+  sortOrder: 0,
 );
 
 const shot = ModifierOption(id: 'm-shot', name: 'Extra shot', extraPrice: 500);

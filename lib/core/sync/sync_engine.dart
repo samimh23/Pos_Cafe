@@ -52,31 +52,49 @@ class SyncEngine {
   }
 
   /// Gets menu changes since the last cursor and saves them locally.
+  /// Items the owner deleted come with `deleted: true` and are removed here.
+  /// (Past orders keep their own copy of name and price, so they are not affected.)
   Future<int> pullMenu() async {
     final res = await _api.pull(await _db.getKv(_cursorKey));
+    bool isDeleted(Map<String, dynamic> row) => row['deleted'] == true;
+
     await _db.transaction(() async {
       await _db.batch((b) {
+        final goneProducts = [
+          for (final p in res.products)
+            if (isDeleted(p)) p['id'] as String,
+        ];
+        final goneCategories = [
+          for (final c in res.categories)
+            if (isDeleted(c)) c['id'] as String,
+        ];
+        if (goneProducts.isNotEmpty) b.deleteWhere(_db.products, (t) => t.id.isIn(goneProducts));
+        if (goneCategories.isNotEmpty) b.deleteWhere(_db.categories, (t) => t.id.isIn(goneCategories));
+
         b.insertAllOnConflictUpdate(_db.categories, [
           for (final c in res.categories)
-            CategoriesCompanion.insert(
-              id: c['id'],
-              name: c['name'],
-              sortOrder: Value(c['sortOrder'] as int),
-              color: Value(c['color'] as String?),
-            ),
+            if (!isDeleted(c))
+              CategoriesCompanion.insert(
+                id: c['id'],
+                name: c['name'],
+                sortOrder: Value(c['sortOrder'] as int),
+                color: Value(c['color'] as String?),
+              ),
         ]);
         b.insertAllOnConflictUpdate(_db.products, [
           for (final p in res.products)
-            ProductsCompanion.insert(
-              id: p['id'],
-              categoryId: p['categoryId'],
-              name: p['name'],
-              price: p['price'] as int,
-              vatRateBp: Value(p['vatRateBp'] as int),
-              station: Value(p['station'] as String),
-              modifierGroupsJson: Value(jsonEncode(p['modifierGroups'] ?? const [])),
-              available: Value(p['available'] as bool),
-            ),
+            if (!isDeleted(p))
+              ProductsCompanion.insert(
+                id: p['id'],
+                categoryId: p['categoryId'],
+                name: p['name'],
+                price: p['price'] as int,
+                vatRateBp: Value(p['vatRateBp'] as int),
+                station: Value(p['station'] as String),
+                modifierGroupsJson: Value(jsonEncode(p['modifierGroups'] ?? const [])),
+                available: Value(p['available'] as bool),
+                sortOrder: Value((p['sortOrder'] as int?) ?? 0),
+              ),
         ]);
       });
       await _db.setKv(_cursorKey, res.cursor);
