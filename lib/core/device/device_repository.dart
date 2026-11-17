@@ -22,22 +22,22 @@ class DeviceIdentity {
   bool get isHub => role == 'hub';
 
   Map<String, Object?> toJson() => {
-        'deviceId': deviceId,
-        'deviceCode': deviceCode,
-        'role': role,
-        'tenantId': tenantId,
-        'branchId': branchId,
-        'name': name,
-      };
+    'deviceId': deviceId,
+    'deviceCode': deviceCode,
+    'role': role,
+    'tenantId': tenantId,
+    'branchId': branchId,
+    'name': name,
+  };
 
   factory DeviceIdentity.fromJson(Map<String, dynamic> j) => DeviceIdentity(
-        deviceId: j['deviceId'],
-        deviceCode: j['deviceCode'],
-        role: j['role'],
-        tenantId: j['tenantId'],
-        branchId: j['branchId'],
-        name: j['name'],
-      );
+    deviceId: j['deviceId'],
+    deviceCode: j['deviceCode'],
+    role: j['role'],
+    tenantId: j['tenantId'],
+    branchId: j['branchId'],
+    name: j['name'],
+  );
 }
 
 /// Model layer for the device: pairing, identity, secrets.

@@ -1,0 +1,10 @@
+/// Event types sent to the backend. Keep in sync with Notion → Sync protocol.
+abstract final class EventTypes {
+  static const orderOpened = 'order.opened';
+  static const orderItemAdded = 'order.item_added';
+  static const orderItemUpdated = 'order.item_updated';
+  static const orderItemVoided = 'order.item_voided';
+  static const orderCancelled = 'order.cancelled';
+  static const orderClosed = 'order.closed';
+  static const paymentAdded = 'payment.added';
+}

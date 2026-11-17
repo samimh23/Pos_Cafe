@@ -85,16 +85,16 @@ class SyncEngine {
   }
 
   Map<String, Object?> _toJson(OutboxRow e) => {
-        'id': e.id,
-        'type': e.type,
-        'version': e.version,
-        'branchId': _identity.branchId,
-        'deviceId': _identity.deviceId,
-        'staffId': e.staffId,
-        'entityId': e.entityId,
-        'deviceSeq': e.deviceSeq,
-        'occurredAt': e.occurredAt.toUtc().toIso8601String(),
-        'approvedBy': e.approvedBy,
-        'payload': jsonDecode(e.payloadJson),
-      };
+    'id': e.id,
+    'type': e.type,
+    'version': e.version,
+    'branchId': _identity.branchId,
+    'deviceId': _identity.deviceId,
+    'staffId': e.staffId,
+    'entityId': e.entityId,
+    'deviceSeq': e.deviceSeq,
+    'occurredAt': e.occurredAt.toUtc().toIso8601String(),
+    'approvedBy': e.approvedBy,
+    'payload': jsonDecode(e.payloadJson),
+  };
 }

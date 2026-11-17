@@ -16,10 +16,7 @@ class Money implements Comparable<Money> {
 
   /// Parses "4.5", "4.500", "4,500", "12", "4.5 DT". Throws [FormatException].
   factory Money.parse(String input) {
-    final s = input
-        .replaceAll(RegExp(r'\s*(DT|TND)\s*$', caseSensitive: false), '')
-        .trim()
-        .replaceAll(',', '.');
+    final s = input.replaceAll(RegExp(r'\s*(DT|TND)\s*$', caseSensitive: false), '').trim().replaceAll(',', '.');
     final m = _pattern.firstMatch(s);
     if (m == null) throw FormatException('Invalid amount', input);
     final value = int.parse(m.group(2)!) * 1000 + int.parse((m.group(3) ?? '').padRight(3, '0'));

@@ -18,13 +18,18 @@ class SyncStatus {
 
   const SyncStatus({this.connection = Connection.unknown, this.syncing = false, this.lastSyncAt, this.lastError});
 
-  SyncStatus copyWith({Connection? connection, bool? syncing, DateTime? lastSyncAt, String? lastError, bool clearError = false}) =>
-      SyncStatus(
-        connection: connection ?? this.connection,
-        syncing: syncing ?? this.syncing,
-        lastSyncAt: lastSyncAt ?? this.lastSyncAt,
-        lastError: clearError ? null : (lastError ?? this.lastError),
-      );
+  SyncStatus copyWith({
+    Connection? connection,
+    bool? syncing,
+    DateTime? lastSyncAt,
+    String? lastError,
+    bool clearError = false,
+  }) => SyncStatus(
+    connection: connection ?? this.connection,
+    syncing: syncing ?? this.syncing,
+    lastSyncAt: lastSyncAt ?? this.lastSyncAt,
+    lastError: clearError ? null : (lastError ?? this.lastError),
+  );
 }
 
 /// Runs the sync in the background every few seconds and exposes its status to the UI.
@@ -43,12 +48,8 @@ class SyncController extends Notifier<SyncStatus> {
     return const SyncStatus();
   }
 
-  SyncEngine _buildEngine(DeviceIdentity identity) => SyncEngine(
-        ref.read(databaseProvider),
-        ref.read(posApiProvider),
-        ref.read(outboxRepositoryProvider),
-        identity,
-      );
+  SyncEngine _buildEngine(DeviceIdentity identity) =>
+      SyncEngine(ref.read(databaseProvider), ref.read(posApiProvider), ref.read(outboxRepositoryProvider), identity);
 
   Future<void> syncNow() async {
     if (state.syncing || ref.read(deviceIdentityProvider).value == null) return;
@@ -56,7 +57,12 @@ class SyncController extends Notifier<SyncStatus> {
     try {
       await _engine.syncNow();
       if (!ref.mounted) return;
-      state = state.copyWith(syncing: false, connection: Connection.online, lastSyncAt: DateTime.now(), clearError: true);
+      state = state.copyWith(
+        syncing: false,
+        connection: Connection.online,
+        lastSyncAt: DateTime.now(),
+        clearError: true,
+      );
     } on ApiException catch (e) {
       if (!ref.mounted) return;
       state = state.copyWith(

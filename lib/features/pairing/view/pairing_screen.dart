@@ -74,9 +74,10 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                   child: FilledButton(
                     key: const Key('pairing-submit'),
                     onPressed: state.submitting ? null : _submit,
-                    child: state.submitting
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Associer'),
+                    child:
+                        state.submitting
+                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Associer'),
                   ),
                 ),
                 const SizedBox(height: 16),

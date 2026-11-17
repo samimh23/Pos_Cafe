@@ -38,11 +38,9 @@ class HomeViewModel extends Notifier<String?> {
   /// Development only: create one event to check the sync end to end.
   Future<void> recordTestEvent() async {
     assert(kDebugMode);
-    await ref.read(outboxRepositoryProvider).record(
-      type: 'debug.test',
-      entityId: newId(),
-      payload: {'message': 'hello from the POS'},
-    );
+    await ref
+        .read(outboxRepositoryProvider)
+        .record(type: 'debug.test', entityId: newId(), payload: {'message': 'hello from the POS'});
   }
 
   /// Development only: unpair this POS.

@@ -30,11 +30,11 @@ class PairingViewModel extends Notifier<PairingState> {
   }
 
   static String messageFor(ApiException e) => switch (e.code) {
-        'PAIRING_CODE_INVALID' => 'Code invalide, déjà utilisé ou expiré. Demandez un nouveau code.',
-        'VALIDATION_ERROR' => 'Le code ou le nom n\'est pas valide.',
-        'NETWORK' => 'Serveur injoignable. Vérifiez la connexion internet.',
-        _ => 'Erreur: ${e.message}',
-      };
+    'PAIRING_CODE_INVALID' => 'Code invalide, déjà utilisé ou expiré. Demandez un nouveau code.',
+    'VALIDATION_ERROR' => 'Le code ou le nom n\'est pas valide.',
+    'NETWORK' => 'Serveur injoignable. Vérifiez la connexion internet.',
+    _ => 'Erreur: ${e.message}',
+  };
 }
 
 final pairingViewModelProvider = NotifierProvider<PairingViewModel, PairingState>(PairingViewModel.new);

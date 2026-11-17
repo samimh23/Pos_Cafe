@@ -11,7 +11,14 @@ void main() {
   });
 
   group('parse', () {
-    for (final (text, m) in [('4.5', 4500), ('4,500', 4500), ('12', 12000), ('0.005', 5), ('-1.25', -1250), ('4.5 DT', 4500)]) {
+    for (final (text, m) in [
+      ('4.5', 4500),
+      ('4,500', 4500),
+      ('12', 12000),
+      ('0.005', 5),
+      ('-1.25', -1250),
+      ('4.5 DT', 4500),
+    ]) {
       test('"$text" → $m', () => expect(Money.parse(text).millimes, m));
     }
     for (final bad in ['', 'abc', '1.2345', '1.2.3']) {
@@ -50,9 +57,9 @@ void main() {
       (rateBp: 1900, ttc: const Money(2400)),
       (rateBp: 700, ttc: const Money(3500)),
     ]);
-    expect([for (final s in b) (s.rateBp, s.ttc.millimes, s.ht.millimes, s.vat.millimes)], [
-      (1900, 6900, 5798, 1102),
-      (700, 3500, 3271, 229),
-    ]);
+    expect(
+      [for (final s in b) (s.rateBp, s.ttc.millimes, s.ht.millimes, s.vat.millimes)],
+      [(1900, 6900, 5798, 1102), (700, 3500, 3271, 229)],
+    );
   });
 }

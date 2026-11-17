@@ -29,12 +29,12 @@ class ApiException implements Exception {
 class PairResponse {
   final String deviceId, deviceCode, role, tenantId, branchId, token;
   PairResponse.fromJson(Map<String, dynamic> j)
-      : deviceId = j['deviceId'],
-        deviceCode = j['deviceCode'],
-        role = j['role'],
-        tenantId = j['tenantId'],
-        branchId = j['branchId'],
-        token = j['token'];
+    : deviceId = j['deviceId'],
+      deviceCode = j['deviceCode'],
+      role = j['role'],
+      tenantId = j['tenantId'],
+      branchId = j['branchId'],
+      token = j['token'];
 }
 
 class PushResponse {
@@ -42,18 +42,18 @@ class PushResponse {
   final Map<String, String> rejected;
   final int duplicates;
   PushResponse.fromJson(Map<String, dynamic> j)
-      : accepted = (j['accepted'] as List).cast<String>(),
-        rejected = {for (final r in (j['rejected'] as List)) r['id'] as String: r['code'] as String},
-        duplicates = j['duplicates'] as int;
+    : accepted = (j['accepted'] as List).cast<String>(),
+      rejected = {for (final r in (j['rejected'] as List)) r['id'] as String: r['code'] as String},
+      duplicates = j['duplicates'] as int;
 }
 
 class PullResponse {
   final String cursor;
   final List<Map<String, dynamic>> categories, products;
   PullResponse.fromJson(Map<String, dynamic> j)
-      : cursor = j['cursor'],
-        categories = (j['categories'] as List).cast<Map<String, dynamic>>(),
-        products = (j['products'] as List).cast<Map<String, dynamic>>();
+    : cursor = j['cursor'],
+      categories = (j['categories'] as List).cast<Map<String, dynamic>>(),
+      products = (j['products'] as List).cast<Map<String, dynamic>>();
 }
 
 /// Backend calls the POS needs. An interface so tests can use a fake.
@@ -66,16 +66,22 @@ abstract class PosApi {
 
 class DioPosApi implements PosApi {
   DioPosApi({required String baseUrl, required Future<String?> Function() token})
-      : _dio = Dio(BaseOptions(
+    : _dio = Dio(
+        BaseOptions(
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 5),
           receiveTimeout: const Duration(seconds: 20),
-        )) {
-    _dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) async {
-      final t = await token();
-      if (t != null) options.headers['authorization'] = 'Device $t';
-      handler.next(options);
-    }));
+        ),
+      ) {
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final t = await token();
+          if (t != null) options.headers['authorization'] = 'Device $t';
+          handler.next(options);
+        },
+      ),
+    );
   }
 
   final Dio _dio;
@@ -90,8 +96,9 @@ class DioPosApi implements PosApi {
 
   @override
   Future<PairResponse> pair({required String code, required String name, required String publicKey}) async =>
-      PairResponse.fromJson(await _call(
-          () => _dio.post('/v1/devices/pair', data: {'code': code, 'name': name, 'publicKey': publicKey})));
+      PairResponse.fromJson(
+        await _call(() => _dio.post('/v1/devices/pair', data: {'code': code, 'name': name, 'publicKey': publicKey})),
+      );
 
   @override
   Future<void> me() => _call(() => _dio.get('/v1/devices/me'));
@@ -101,6 +108,7 @@ class DioPosApi implements PosApi {
       PushResponse.fromJson(await _call(() => _dio.post('/v1/sync/push', data: {'events': events})));
 
   @override
-  Future<PullResponse> pull(String? cursor) async => PullResponse.fromJson(await _call(
-      () => _dio.get('/v1/sync/pull', queryParameters: {if (cursor != null) 'cursor': cursor})));
+  Future<PullResponse> pull(String? cursor) async => PullResponse.fromJson(
+    await _call(() => _dio.get('/v1/sync/pull', queryParameters: {if (cursor != null) 'cursor': cursor})),
+  );
 }

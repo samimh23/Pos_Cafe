@@ -2,9 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/db/app_database.dart';
 import '../../../core/device/device_repository.dart';
+import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/sync_controller.dart';
+import '../../order/view/modifiers_dialog.dart';
+import '../../order/view/ticket_panel.dart';
+import '../../order/view_model/order_view_model.dart';
 import '../view_model/home_view_model.dart';
 
 Color _hex(String? hex) =>
@@ -28,24 +33,28 @@ class HomeScreen extends ConsumerWidget {
           if (kDebugMode)
             PopupMenuButton<String>(
               tooltip: 'Développement',
-              onSelected: (v) => switch (v) {
-                'event' => vm.recordTestEvent(),
-                'forget' => vm.forgetDevice(),
-                _ => null,
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'event', child: Text('Créer un événement test')),
-                PopupMenuItem(value: 'forget', child: Text('Dissocier cette caisse')),
-              ],
+              onSelected:
+                  (v) => switch (v) {
+                    'event' => vm.recordTestEvent(),
+                    'forget' => vm.forgetDevice(),
+                    _ => null,
+                  },
+              itemBuilder:
+                  (_) => const [
+                    PopupMenuItem(value: 'event', child: Text('Créer un événement test')),
+                    PopupMenuItem(value: 'forget', child: Text('Dissocier cette caisse')),
+                  ],
             ),
           const SizedBox(width: 8),
         ],
       ),
       body: const Row(
         children: [
-          SizedBox(width: 200, child: _CategoryList()),
+          SizedBox(width: 190, child: _CategoryList()),
           VerticalDivider(width: 1),
           Expanded(child: _ProductGrid()),
+          VerticalDivider(width: 1),
+          SizedBox(width: 400, child: TicketPanel()),
         ],
       ),
     );
@@ -139,19 +148,34 @@ class _ProductGrid extends ConsumerWidget {
       itemBuilder: (context, i) {
         final p = products[i];
         return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Flexible(child: Text(p.name, style: text.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis)),
-                Text(Money(p.price).toString(), style: text.bodyLarge),
-              ],
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: Key('product-${p.id}'),
+            onTap: () => _addProduct(context, ref, p),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(child: Text(p.name, style: text.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                  Text(Money(p.price).toString(), style: text.bodyLarge),
+                ],
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  /// Products with options (size, extras…) open the modifiers dialog first.
+  Future<void> _addProduct(BuildContext context, WidgetRef ref, ProductRow p) async {
+    final vm = ref.read(orderViewModelProvider.notifier);
+    final groups = parseModifierGroups(p.modifierGroupsJson);
+    if (groups.isEmpty) return vm.addProduct(p);
+
+    final chosen = await showModifiersDialog(context, p.name, groups);
+    if (chosen != null) await vm.addProduct(p, chosen);
   }
 }

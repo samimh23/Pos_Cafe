@@ -18,10 +18,10 @@ void main() {
   late FakePosApi api;
 
   List<Override> overrides() => [
-        databaseProvider.overrideWithValue(db),
-        secretStoreProvider.overrideWithValue(secrets),
-        posApiProvider.overrideWithValue(api),
-      ];
+    databaseProvider.overrideWithValue(db),
+    secretStoreProvider.overrideWithValue(secrets),
+    posApiProvider.overrideWithValue(api),
+  ];
 
   setUp(() {
     // closeStreamsSynchronously: no leftover stream timers in widget tests.

@@ -27,25 +27,30 @@ class OutboxRepository {
     return _db.transaction(() async {
       final seq = (int.tryParse(await _db.getKv(_lastSeqKey) ?? '') ?? 0) + 1;
       await _db.setKv(_lastSeqKey, '$seq');
-      return _db.into(_db.outboxEvents).insertReturning(OutboxEventsCompanion.insert(
-            id: newId(),
-            type: type,
-            entityId: entityId,
-            deviceSeq: seq,
-            occurredAt: (now ?? DateTime.now()).toUtc(),
-            staffId: Value(staffId),
-            approvedBy: Value(approvedBy),
-            payloadJson: jsonEncode(payload),
-          ));
+      return _db
+          .into(_db.outboxEvents)
+          .insertReturning(
+            OutboxEventsCompanion.insert(
+              id: newId(),
+              type: type,
+              entityId: entityId,
+              deviceSeq: seq,
+              occurredAt: (now ?? DateTime.now()).toUtc(),
+              staffId: Value(staffId),
+              approvedBy: Value(approvedBy),
+              payloadJson: jsonEncode(payload),
+            ),
+          );
     });
   }
 
   /// Oldest events first, excluding the ones the server refused.
-  Future<List<OutboxRow>> pending({int limit = 500}) => (_db.select(_db.outboxEvents)
-        ..where((t) => t.rejectedCode.isNull())
-        ..orderBy([(t) => OrderingTerm.asc(t.deviceSeq)])
-        ..limit(limit))
-      .get();
+  Future<List<OutboxRow>> pending({int limit = 500}) =>
+      (_db.select(_db.outboxEvents)
+            ..where((t) => t.rejectedCode.isNull())
+            ..orderBy([(t) => OrderingTerm.asc(t.deviceSeq)])
+            ..limit(limit))
+          .get();
 
   /// After the server confirms them.
   Future<void> remove(Iterable<String> ids) async {
@@ -55,11 +60,10 @@ class OutboxRepository {
   }
 
   Future<void> markRejected(Map<String, String> codeById) => _db.batch((b) {
-        for (final e in codeById.entries) {
-          b.update(_db.outboxEvents, OutboxEventsCompanion(rejectedCode: Value(e.value)),
-              where: (t) => t.id.equals(e.key));
-        }
-      });
+    for (final e in codeById.entries) {
+      b.update(_db.outboxEvents, OutboxEventsCompanion(rejectedCode: Value(e.value)), where: (t) => t.id.equals(e.key));
+    }
+  });
 
   /// Live count for the status bar ("12 en attente").
   Stream<int> watchPendingCount() {

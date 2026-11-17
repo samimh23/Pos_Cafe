@@ -66,3 +66,73 @@ class OutboxEvents extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+// ── Sales (owned by this device; every change also records an event) ──────
+
+/// One customer order. Only one `open` order at a time on a POS for now.
+@DataClassName('OrderRow')
+class Orders extends Table {
+  TextColumn get id => text()();
+
+  /// open | paid | cancelled
+  TextColumn get status => text().withDefault(const Constant('open'))();
+
+  /// takeaway | table
+  TextColumn get type => text().withDefault(const Constant('takeaway'))();
+  TextColumn get tableLabel => text().nullable()();
+  DateTimeColumn get openedAt => dateTime()();
+  DateTimeColumn get closedAt => dateTime().nullable()();
+
+  /// TTC in millimes, set when the order is paid.
+  IntColumn get total => integer().withDefault(const Constant(0))();
+
+  /// "T1-000042", set when the order is paid.
+  TextColumn get receiptNumber => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A line of an order. Name and prices are SNAPSHOTS taken at sale time:
+/// changing the menu later never changes old orders.
+@DataClassName('OrderLineRow')
+class OrderLines extends Table {
+  TextColumn get id => text()();
+  TextColumn get orderId => text()();
+  TextColumn get productId => text()();
+  TextColumn get name => text()();
+
+  /// Product price TTC in millimes (without modifiers).
+  IntColumn get unitPrice => integer()();
+
+  /// Sum of the chosen modifiers' extra prices, per unit.
+  IntColumn get modifiersPrice => integer().withDefault(const Constant(0))();
+
+  /// [{"id","name","extraPrice"}] — chosen modifiers.
+  TextColumn get modifiersJson => text().withDefault(const Constant('[]'))();
+  IntColumn get qty => integer()();
+  IntColumn get vatRateBp => integer()();
+  TextColumn get station => text().withDefault(const Constant('none'))();
+  TextColumn get note => text().nullable()();
+  BoolColumn get voided => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('PaymentRow')
+class Payments extends Table {
+  TextColumn get id => text()();
+  TextColumn get orderId => text()();
+
+  /// cash | card
+  TextColumn get method => text()();
+  IntColumn get amount => integer()();
+  IntColumn get tendered => integer()();
+  IntColumn get changeGiven => integer()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
