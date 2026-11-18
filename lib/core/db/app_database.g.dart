@@ -3493,6 +3493,318 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
   }
 }
 
+class $StaffMembersTable extends StaffMembers
+    with TableInfo<$StaffMembersTable, StaffRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StaffMembersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pinHashMeta = const VerificationMeta(
+    'pinHash',
+  );
+  @override
+  late final GeneratedColumn<String> pinHash = GeneratedColumn<String>(
+    'pin_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, role, pinHash];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'staff_members';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StaffRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('pin_hash')) {
+      context.handle(
+        _pinHashMeta,
+        pinHash.isAcceptableOrUnknown(data['pin_hash']!, _pinHashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pinHashMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StaffRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StaffRow(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      role:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}role'],
+          )!,
+      pinHash:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}pin_hash'],
+          )!,
+    );
+  }
+
+  @override
+  $StaffMembersTable createAlias(String alias) {
+    return $StaffMembersTable(attachedDatabase, alias);
+  }
+}
+
+class StaffRow extends DataClass implements Insertable<StaffRow> {
+  final String id;
+  final String name;
+
+  /// manager | cashier | server | kitchen
+  final String role;
+  final String pinHash;
+  const StaffRow({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.pinHash,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['role'] = Variable<String>(role);
+    map['pin_hash'] = Variable<String>(pinHash);
+    return map;
+  }
+
+  StaffMembersCompanion toCompanion(bool nullToAbsent) {
+    return StaffMembersCompanion(
+      id: Value(id),
+      name: Value(name),
+      role: Value(role),
+      pinHash: Value(pinHash),
+    );
+  }
+
+  factory StaffRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StaffRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      role: serializer.fromJson<String>(json['role']),
+      pinHash: serializer.fromJson<String>(json['pinHash']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'role': serializer.toJson<String>(role),
+      'pinHash': serializer.toJson<String>(pinHash),
+    };
+  }
+
+  StaffRow copyWith({
+    String? id,
+    String? name,
+    String? role,
+    String? pinHash,
+  }) => StaffRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    role: role ?? this.role,
+    pinHash: pinHash ?? this.pinHash,
+  );
+  StaffRow copyWithCompanion(StaffMembersCompanion data) {
+    return StaffRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      role: data.role.present ? data.role.value : this.role,
+      pinHash: data.pinHash.present ? data.pinHash.value : this.pinHash,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StaffRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('role: $role, ')
+          ..write('pinHash: $pinHash')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, role, pinHash);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StaffRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.role == this.role &&
+          other.pinHash == this.pinHash);
+}
+
+class StaffMembersCompanion extends UpdateCompanion<StaffRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> role;
+  final Value<String> pinHash;
+  final Value<int> rowid;
+  const StaffMembersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.role = const Value.absent(),
+    this.pinHash = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StaffMembersCompanion.insert({
+    required String id,
+    required String name,
+    required String role,
+    required String pinHash,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       role = Value(role),
+       pinHash = Value(pinHash);
+  static Insertable<StaffRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? role,
+    Expression<String>? pinHash,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (role != null) 'role': role,
+      if (pinHash != null) 'pin_hash': pinHash,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StaffMembersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? role,
+    Value<String>? pinHash,
+    Value<int>? rowid,
+  }) {
+    return StaffMembersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      pinHash: pinHash ?? this.pinHash,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (pinHash.present) {
+      map['pin_hash'] = Variable<String>(pinHash.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StaffMembersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('role: $role, ')
+          ..write('pinHash: $pinHash, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3503,6 +3815,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $OrdersTable orders = $OrdersTable(this);
   late final $OrderLinesTable orderLines = $OrderLinesTable(this);
   late final $PaymentsTable payments = $PaymentsTable(this);
+  late final $StaffMembersTable staffMembers = $StaffMembersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3515,6 +3828,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     orders,
     orderLines,
     payments,
+    staffMembers,
   ];
 }
 
@@ -5307,6 +5621,192 @@ typedef $$PaymentsTableProcessedTableManager =
       PaymentRow,
       PrefetchHooks Function()
     >;
+typedef $$StaffMembersTableCreateCompanionBuilder =
+    StaffMembersCompanion Function({
+      required String id,
+      required String name,
+      required String role,
+      required String pinHash,
+      Value<int> rowid,
+    });
+typedef $$StaffMembersTableUpdateCompanionBuilder =
+    StaffMembersCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> role,
+      Value<String> pinHash,
+      Value<int> rowid,
+    });
+
+class $$StaffMembersTableFilterComposer
+    extends Composer<_$AppDatabase, $StaffMembersTable> {
+  $$StaffMembersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pinHash => $composableBuilder(
+    column: $table.pinHash,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$StaffMembersTableOrderingComposer
+    extends Composer<_$AppDatabase, $StaffMembersTable> {
+  $$StaffMembersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pinHash => $composableBuilder(
+    column: $table.pinHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StaffMembersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StaffMembersTable> {
+  $$StaffMembersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get pinHash =>
+      $composableBuilder(column: $table.pinHash, builder: (column) => column);
+}
+
+class $$StaffMembersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StaffMembersTable,
+          StaffRow,
+          $$StaffMembersTableFilterComposer,
+          $$StaffMembersTableOrderingComposer,
+          $$StaffMembersTableAnnotationComposer,
+          $$StaffMembersTableCreateCompanionBuilder,
+          $$StaffMembersTableUpdateCompanionBuilder,
+          (
+            StaffRow,
+            BaseReferences<_$AppDatabase, $StaffMembersTable, StaffRow>,
+          ),
+          StaffRow,
+          PrefetchHooks Function()
+        > {
+  $$StaffMembersTableTableManager(_$AppDatabase db, $StaffMembersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$StaffMembersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$StaffMembersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () =>
+                  $$StaffMembersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String> pinHash = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StaffMembersCompanion(
+                id: id,
+                name: name,
+                role: role,
+                pinHash: pinHash,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String role,
+                required String pinHash,
+                Value<int> rowid = const Value.absent(),
+              }) => StaffMembersCompanion.insert(
+                id: id,
+                name: name,
+                role: role,
+                pinHash: pinHash,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$StaffMembersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StaffMembersTable,
+      StaffRow,
+      $$StaffMembersTableFilterComposer,
+      $$StaffMembersTableOrderingComposer,
+      $$StaffMembersTableAnnotationComposer,
+      $$StaffMembersTableCreateCompanionBuilder,
+      $$StaffMembersTableUpdateCompanionBuilder,
+      (StaffRow, BaseReferences<_$AppDatabase, $StaffMembersTable, StaffRow>),
+      StaffRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5325,4 +5825,6 @@ class $AppDatabaseManager {
       $$OrderLinesTableTableManager(_db, _db.orderLines);
   $$PaymentsTableTableManager get payments =>
       $$PaymentsTableTableManager(_db, _db.payments);
+  $$StaffMembersTableTableManager get staffMembers =>
+      $$StaffMembersTableTableManager(_db, _db.staffMembers);
 }

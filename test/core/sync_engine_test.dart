@@ -82,7 +82,7 @@ void main() {
 
   test('pull saves the menu and the cursor; next pull asks only for changes', () async {
     final changes = await engine.pullMenu();
-    expect(changes, 2);
+    expect(changes, 3); // 1 category + 1 product + 1 staff member
     expect((await db.select(db.categories).get()).single.name, 'Boissons chaudes');
     final p = (await db.select(db.products).get()).single;
     expect((p.name, p.price, p.vatRateBp), ('Express', 1200, 1900));

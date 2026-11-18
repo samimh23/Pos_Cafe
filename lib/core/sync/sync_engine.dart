@@ -71,6 +71,18 @@ class SyncEngine {
         if (goneProducts.isNotEmpty) b.deleteWhere(_db.products, (t) => t.id.isIn(goneProducts));
         if (goneCategories.isNotEmpty) b.deleteWhere(_db.categories, (t) => t.id.isIn(goneCategories));
 
+        // Staff: active → upsert, deactivated → remove (can no longer log in here).
+        final goneStaff = [
+          for (final st in res.staff)
+            if (st['active'] != true) st['id'] as String,
+        ];
+        if (goneStaff.isNotEmpty) b.deleteWhere(_db.staffMembers, (t) => t.id.isIn(goneStaff));
+        b.insertAllOnConflictUpdate(_db.staffMembers, [
+          for (final st in res.staff)
+            if (st['active'] == true)
+              StaffMembersCompanion.insert(id: st['id'], name: st['name'], role: st['role'], pinHash: st['pinHash']),
+        ]);
+
         b.insertAllOnConflictUpdate(_db.categories, [
           for (final c in res.categories)
             if (!isDeleted(c))
@@ -99,7 +111,7 @@ class SyncEngine {
       });
       await _db.setKv(_cursorKey, res.cursor);
     });
-    return res.categories.length + res.products.length;
+    return res.categories.length + res.products.length + res.staff.length;
   }
 
   Map<String, Object?> _toJson(OutboxRow e) => {

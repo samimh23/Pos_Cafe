@@ -11,6 +11,7 @@ import 'package:pos_cafe/core/providers.dart';
 import 'package:pos_cafe/features/pairing/view_model/pairing_view_model.dart';
 
 import '../fakes.dart';
+import 'staff_login_helper.dart';
 
 void main() {
   late AppDatabase db;
@@ -66,7 +67,7 @@ void main() {
     });
   });
 
-  testWidgets('not paired → pairing screen; after pairing → POS home with the menu', (tester) async {
+  testWidgets('not paired → pairing screen; after pairing → staff login → POS home with the menu', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -77,7 +78,8 @@ void main() {
 
     await tester.enterText(find.byKey(const Key('pairing-code')), 'ABCD-EFGH');
     await tester.tap(find.byKey(const Key('pairing-submit')));
-    // pairing → first sync pulls the menu → category selected → products stream
+    // pairing → first sync pulls the menu and the staff → "Qui êtes-vous ?"
+    await loginAsAhmed(tester);
     for (var i = 0; i < 10 && find.text('Express').evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -85,6 +87,7 @@ void main() {
     expect(find.textContaining('T1'), findsOneWidget);
     expect(find.text('Boissons chaudes'), findsOneWidget);
     expect(find.text('Express'), findsOneWidget);
+    expect(find.byKey(const Key('staff-chip')), findsOneWidget);
 
     // Stop the periodic sync timer before the test ends.
     await tester.pumpWidget(const SizedBox());

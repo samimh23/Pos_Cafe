@@ -7,7 +7,7 @@ import 'package:pos_cafe/core/db/app_database.dart';
 /// A POS already in a café has a v2 database with sales in it.
 /// Updating the app must upgrade it to v3 without losing anything.
 void main() {
-  test('v2 database upgrades to v3 and keeps its data', () async {
+  test('v2 database upgrades to the latest version and keeps its data', () async {
     final dir = await Directory.systemTemp.createTemp('pos_migration');
     final file = File('${dir.path}/pos.sqlite');
     addTearDown(() => dir.delete(recursive: true));
@@ -19,6 +19,7 @@ void main() {
         .insert(ProductsCompanion.insert(id: 'p1', categoryId: 'c1', name: 'Express', price: 1200));
     await db.setKv('last_seq', '42');
     await db.customStatement('ALTER TABLE products DROP COLUMN sort_order');
+    await db.customStatement('DROP TABLE staff_members'); // v4 table didn't exist in v2
     await db.customStatement('PRAGMA user_version = 2');
     await db.close();
 
@@ -27,7 +28,8 @@ void main() {
     final p = await db.select(db.products).getSingle();
     expect((p.name, p.price, p.sortOrder), ('Express', 1200, 0));
     expect(await db.getKv('last_seq'), '42');
-    expect((await db.customSelect('PRAGMA user_version').getSingle()).data.values.first, 3);
+    expect((await db.customSelect('PRAGMA user_version').getSingle()).data.values.first, db.schemaVersion);
+    expect(await db.select(db.staffMembers).get(), isEmpty); // v4 table created
     await db.close();
   });
 }

@@ -10,6 +10,7 @@ import '../../../core/sync/sync_controller.dart';
 import '../../order/view/modifiers_dialog.dart';
 import '../../order/view/ticket_panel.dart';
 import '../../order/view_model/order_view_model.dart';
+import '../../staff_login/view_model/staff_session.dart';
 import '../view_model/home_view_model.dart';
 
 Color _hex(String? hex) =>
@@ -29,6 +30,8 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('${identity.name} · ${identity.deviceCode}${identity.isHub ? ' (Hub)' : ''}'),
         actions: [
+          const _StaffChip(),
+          const SizedBox(width: 8),
           const _SyncStatusChip(),
           if (kDebugMode)
             PopupMenuButton<String>(
@@ -56,6 +59,26 @@ class HomeScreen extends ConsumerWidget {
           VerticalDivider(width: 1),
           SizedBox(width: 400, child: TicketPanel()),
         ],
+      ),
+    );
+  }
+}
+
+/// Who is logged in + "switch user" (back to the PIN screen).
+class _StaffChip extends ConsumerWidget {
+  const _StaffChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final staff = ref.watch(staffSessionProvider);
+    if (staff == null) return const SizedBox.shrink();
+    return Tooltip(
+      message: 'Changer d’utilisateur',
+      child: ActionChip(
+        key: const Key('staff-chip'),
+        avatar: const Icon(Icons.person_outline, size: 18),
+        label: Text(staff.name),
+        onPressed: () => ref.read(staffSessionProvider.notifier).logout(),
       ),
     );
   }

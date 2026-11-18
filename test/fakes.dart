@@ -73,10 +73,20 @@ class FakePosApi implements PosApi {
       'cursor': '2026-11-17T10:00:00.000Z',
       'categories': cursor == null ? categories : changedCategories,
       'products': cursor == null ? products : changedProducts,
+      'staff': cursor == null ? staff.where((s) => s['active'] == true).toList() : changedStaff,
     });
   }
+
+  /// Ahmed, PIN 1234 (shared test vector with the backend, 1000 iterations = fast tests).
+  List<Map<String, dynamic>> staff = [
+    {'id': 'staff-ahmed', 'name': 'Ahmed', 'role': 'server', 'pinHash': ahmedPinHash, 'active': true},
+  ];
+  List<Map<String, dynamic>> changedStaff = [];
 
   /// What the next pull (with a cursor) returns — e.g. a price change or `deleted: true`.
   List<Map<String, dynamic>> changedCategories = [];
   List<Map<String, dynamic>> changedProducts = [];
 }
+
+/// PIN "1234" — same vector as Backend_Platform test/staff.test.ts.
+const ahmedPinHash = r'pbkdf2-sha256$1000$a2Fod3RpLXRlc3Qtc2FsdA$I4Uu_ofD4UQbzJa60p4IWhObH52R4TW-SLj5lfbAnFU';

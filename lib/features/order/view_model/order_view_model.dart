@@ -5,10 +5,15 @@ import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/order_totals.dart';
 import '../../../core/providers.dart';
+import '../../staff_login/view_model/staff_session.dart';
 import '../data/order_repository.dart';
 
 final orderRepositoryProvider = Provider<OrderRepository>(
-  (ref) => OrderRepository(ref.watch(databaseProvider), ref.watch(outboxRepositoryProvider)),
+  (ref) => OrderRepository(
+    ref.watch(databaseProvider),
+    ref.watch(outboxRepositoryProvider),
+    staffId: () => ref.read(staffSessionProvider)?.id,
+  ),
 );
 
 /// The open order (null when the ticket is empty and nothing was started).

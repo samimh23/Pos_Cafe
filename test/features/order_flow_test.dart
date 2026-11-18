@@ -9,6 +9,7 @@ import 'package:pos_cafe/core/device/secret_store.dart';
 import 'package:pos_cafe/core/providers.dart';
 
 import '../fakes.dart';
+import 'staff_login_helper.dart';
 
 /// Full POS flow in the real UI: add products (with options), pay cash, ticket resets.
 void main() {
@@ -68,7 +69,10 @@ void main() {
       }
     }
 
-    // Wait for the first sync to download the menu.
+    // First sync brings the staff list; the server logs in.
+    await loginAsAhmed(tester);
+
+    // Wait for the menu.
     for (var i = 0; i < 20 && find.byKey(const Key('product-p1')).evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -113,6 +117,23 @@ void main() {
     );
     final all = [...pushedTypes, ...?pendingTypes];
     expect(all, containsAll(['order.opened', 'order.item_added', 'payment.added', 'order.closed']));
+
+    // Every sale event says WHO did it (the staff member logged in on this POS).
+    final pushedOrder = api.pushed.values.where((e) => '${e['type']}'.startsWith('order.'));
+    final pendingOrder = await tester.runAsync(
+      () async => [
+        for (final e in await db.select(db.outboxEvents).get())
+          if (e.type.startsWith('order.')) e.staffId,
+      ],
+    );
+    final staffIds = {...pushedOrder.map((e) => e['staffId']), ...?pendingOrder};
+    expect(staffIds, {'staff-ahmed'});
+
+    // Tap the name → logged out → back to "Qui êtes-vous ?".
+    expect(find.text('Ahmed'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('staff-chip')));
+    await settle();
+    expect(find.text('Qui êtes-vous ?'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(db.close);

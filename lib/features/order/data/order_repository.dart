@@ -35,11 +35,16 @@ LineAmounts amountsOf(OrderLineRow l) => (
 /// Model layer for orders. Every method changes the local data AND records the
 /// matching sync event in ONE transaction — both are saved, or neither.
 class OrderRepository {
-  OrderRepository(this._db, this._outbox, {DateTime Function()? clock}) : _now = clock ?? DateTime.now;
+  OrderRepository(this._db, this._outbox, {DateTime Function()? clock, String? Function()? staffId})
+    : _now = clock ?? DateTime.now,
+      _staffId = staffId ?? (() => null);
 
   final AppDatabase _db;
   final OutboxRepository _outbox;
   final DateTime Function() _now;
+
+  /// Who is logged in on the POS — every event says who did it.
+  final String? Function() _staffId;
 
   static const _receiptSeqKey = 'receipt_seq';
 
@@ -97,6 +102,7 @@ class OrderRepository {
       );
       await _db.into(_db.orderLines).insert(line);
       await _outbox.record(
+        staffId: _staffId(),
         type: EventTypes.orderItemAdded,
         entityId: orderId,
         payload: {
@@ -133,6 +139,7 @@ class OrderRepository {
       (o) => o.id.equals(order.id),
     )).write(OrdersCompanion(status: const Value('cancelled'), closedAt: Value(_now())));
     await _outbox.record(
+      staffId: _staffId(),
       type: EventTypes.orderCancelled,
       entityId: order.id,
       payload: {'reason': 'cancelled_by_staff'},
@@ -181,6 +188,7 @@ class OrderRepository {
       );
 
       await _outbox.record(
+        staffId: _staffId(),
         type: EventTypes.paymentAdded,
         entityId: order.id,
         payload: {
@@ -192,6 +200,7 @@ class OrderRepository {
         },
       );
       await _outbox.record(
+        staffId: _staffId(),
         type: EventTypes.orderClosed,
         entityId: order.id,
         payload: {
@@ -224,7 +233,7 @@ class OrderRepository {
     if (open != null) return open.id;
     final id = newId();
     await _db.into(_db.orders).insert(OrdersCompanion.insert(id: id, openedAt: _now()));
-    await _outbox.record(type: EventTypes.orderOpened, entityId: id, payload: {'type': 'takeaway'});
+    await _outbox.record(staffId: _staffId(), type: EventTypes.orderOpened, entityId: id, payload: {'type': 'takeaway'});
     return id;
   }
 
@@ -233,6 +242,7 @@ class OrderRepository {
   Future<void> _setQty(OrderLineRow line, int qty) async {
     await (_db.update(_db.orderLines)..where((l) => l.id.equals(line.id))).write(OrderLinesCompanion(qty: Value(qty)));
     await _outbox.record(
+      staffId: _staffId(),
       type: EventTypes.orderItemUpdated,
       entityId: line.orderId,
       payload: {'lineId': line.id, 'qty': qty},
@@ -243,6 +253,7 @@ class OrderRepository {
     await (_db.update(_db.orderLines)
       ..where((l) => l.id.equals(line.id))).write(const OrderLinesCompanion(voided: Value(true)));
     await _outbox.record(
+      staffId: _staffId(),
       type: EventTypes.orderItemVoided,
       entityId: line.orderId,
       payload: {'lineId': line.id, 'reason': reason},

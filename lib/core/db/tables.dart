@@ -139,3 +139,18 @@ class Payments extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+/// Staff who can log in on this POS (v4). Filled by sync pull; the PIN is checked
+/// OFFLINE against `pinHash` (never the PIN itself).
+@DataClassName('StaffRow')
+class StaffMembers extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+
+  /// manager | cashier | server | kitchen
+  TextColumn get role => text()();
+  TextColumn get pinHash => text()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}

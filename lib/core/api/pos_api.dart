@@ -49,11 +49,13 @@ class PushResponse {
 
 class PullResponse {
   final String cursor;
-  final List<Map<String, dynamic>> categories, products;
+  final List<Map<String, dynamic>> categories, products, staff;
   PullResponse.fromJson(Map<String, dynamic> j)
     : cursor = j['cursor'],
       categories = (j['categories'] as List).cast<Map<String, dynamic>>(),
-      products = (j['products'] as List).cast<Map<String, dynamic>>();
+      products = (j['products'] as List).cast<Map<String, dynamic>>(),
+      // Older backends don't send staff yet.
+      staff = ((j['staff'] as List?) ?? const []).cast<Map<String, dynamic>>();
 }
 
 /// Backend calls the POS needs. An interface so tests can use a fake.
