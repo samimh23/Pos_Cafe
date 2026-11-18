@@ -99,10 +99,13 @@ class HubClient {
       } else {
         final port = hub.port ?? HubProtocol.port;
         final candidates = {for (final a in hub.addresses) '$a:$port', ...extraAddresses};
-        for (final address in candidates) {
-          if (_stopped) return;
-          if (await _listen(info, address)) break; // was connected, then lost → start again
+        // All addresses at once (a PC has several network cards, some unreachable): the first that answers wins.
+        final first = await _firstConnection(info, candidates);
+        if (_stopped) {
+          await first?.$1.close();
+          return;
         }
+        if (first != null) await _listen(first.$1, first.$2); // returns when the connection drops
         if (!_link.connected) {
           _set(
             HubLink(
@@ -123,9 +126,27 @@ class HubClient {
     }
   }
 
-  /// Connects to one address and copies every snapshot until the connection drops.
-  /// Returns true if it was connected at some point.
-  Future<bool> _listen(LanInfo info, String address) async {
+  /// Tries every address in parallel; returns the first connection accepted by the Hub.
+  Future<(WebSocket, String)?> _firstConnection(LanInfo info, Iterable<String> candidates) {
+    final list = candidates.toList();
+    if (list.isEmpty) return Future.value(null);
+    final winner = Completer<(WebSocket, String)?>();
+    var pending = list.length;
+    for (final address in list) {
+      _open(info, address).then((ws) {
+        if (ws != null && !winner.isCompleted) {
+          winner.complete((ws, address));
+        } else {
+          ws?.close(); // a slower address also answered: not needed
+        }
+        if (--pending == 0 && !winner.isCompleted) winner.complete(null);
+      });
+    }
+    return winner.future;
+  }
+
+  /// Opens the signed live connection to one address, or null if it doesn't answer / refuses.
+  Future<WebSocket?> _open(LanInfo info, String address) async {
     try {
       final ts = DateTime.now().millisecondsSinceEpoch;
       final sig = await LanSigner(
@@ -134,20 +155,27 @@ class HubClient {
       final uri = Uri.parse(
         'ws://$address/hub/live',
       ).replace(queryParameters: {'device': _identity.deviceId, 'ts': '$ts', 'sig': sig});
-      final ws = await WebSocket.connect(uri.toString()).timeout(const Duration(seconds: 3));
-      ws.pingInterval = const Duration(seconds: 10);
-      _ws = ws;
-      _set(HubLink(HubLinkState.connected, address: address));
+      return await WebSocket.connect(uri.toString()).timeout(const Duration(seconds: 3));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Copies every snapshot until the connection drops.
+  Future<void> _listen(WebSocket ws, String address) async {
+    ws.pingInterval = const Duration(seconds: 10);
+    _ws = ws;
+    _set(HubLink(HubLinkState.connected, address: address));
+    try {
       await for (final msg in ws) {
         final json = jsonDecode(msg as String) as Map<String, dynamic>;
         if (json['type'] == 'snapshot') await _mirror.apply(json);
       }
-      _ws = null;
-      _set(const HubLink(HubLinkState.connecting));
-      return true;
     } catch (_) {
-      return false;
+      // connection lost
     }
+    _ws = null;
+    _set(const HubLink(HubLinkState.connecting));
   }
 
   /// Sends one action to the Hub. Throws [OrderException] with a French message

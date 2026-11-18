@@ -39,22 +39,23 @@ void main() {
     return db;
   }
 
-  LanInfo lan({String key = lanKey, bool terraceDisabled = false}) => LanInfo(
-    lanKey: key,
-    hub: HubAddress(deviceId: hubId.deviceId, code: 'T1', addresses: ['127.0.0.1'], port: server.port),
-    devices: [
-      LanDevice(id: 'hub-1', code: 'T1', name: 'Caisse', role: 'hub', canTakePayments: true, disabled: false),
-      LanDevice(id: 'tab-2', code: 'T2', name: 'Tablette', role: 'pos', canTakePayments: false, disabled: false),
-      LanDevice(
-        id: 'tab-3',
-        code: 'T3',
-        name: 'Terrasse',
-        role: 'pos',
-        canTakePayments: true,
-        disabled: terraceDisabled,
-      ),
-    ],
-  );
+  LanInfo lan({String key = lanKey, bool terraceDisabled = false, List<String> addresses = const ['127.0.0.1']}) =>
+      LanInfo(
+        lanKey: key,
+        hub: HubAddress(deviceId: hubId.deviceId, code: 'T1', addresses: addresses, port: server.port),
+        devices: [
+          LanDevice(id: 'hub-1', code: 'T1', name: 'Caisse', role: 'hub', canTakePayments: true, disabled: false),
+          LanDevice(id: 'tab-2', code: 'T2', name: 'Tablette', role: 'pos', canTakePayments: false, disabled: false),
+          LanDevice(
+            id: 'tab-3',
+            code: 'T3',
+            name: 'Terrasse',
+            role: 'pos',
+            canTakePayments: true,
+            disabled: terraceDisabled,
+          ),
+        ],
+      );
 
   Future<HubClient> connect(DeviceIdentity who, AppDatabase db, {LanInfo? withInfo}) async {
     final c = HubClient(
@@ -254,6 +255,15 @@ void main() {
     // Restart for tearDown.
     server = HubServer(db: hubDb, outbox: hubOutbox, identity: hubId, lanInfo: () async => info, port: 0);
     await server.start();
+  });
+
+  test('the Hub has several network cards, one unreachable → the tablet still connects at once', () async {
+    final sw = Stopwatch()..start();
+    // 10.255.255.1 never answers (like a VirtualBox adapter seen from a tablet).
+    final c = await connect(tablet, tabletDb, withInfo: lan(addresses: ['10.255.255.1', '127.0.0.1']));
+    await eventually(() async => c.link.connected);
+    expect(c.link.address, '127.0.0.1:${server.port}');
+    expect(sw.elapsed, lessThan(const Duration(seconds: 2)), reason: 'did not wait for the dead address');
   });
 
   test('LAN signatures: right key and time pass; wrong key, changed body or old timestamp fail', () async {

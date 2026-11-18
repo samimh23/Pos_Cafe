@@ -88,15 +88,32 @@ final hubTabletsProvider = StreamProvider<int>((ref) {
   return server == null ? Stream.value(0) : server.connectedTablets;
 });
 
-/// This computer's private IPv4 addresses (Wi-Fi, Ethernet…).
+/// This computer's private IPv4 addresses (Wi-Fi, Ethernet…), real network cards first:
+/// virtual adapters (VirtualBox, VMware, Hyper-V, WSL, Docker) can't be reached by tablets.
 Future<List<String>> localAddresses() async {
   final interfaces = await NetworkInterface.list(type: InternetAddressType.IPv4);
-  return [
+  final found = [
     for (final i in interfaces)
       for (final a in i.addresses)
-        if (_isPrivate(a.address)) a.address,
+        if (_isPrivate(a.address))
+          (
+            address: a.address,
+            virtual: isVirtualAdapter(i.name),
+            wifi: RegExp(r'wi-?fi|wlan|wireless', caseSensitive: false).hasMatch(i.name),
+          ),
+  ];
+  // Wi-Fi first (cafés use Wi-Fi), then other cards; tablets also try them all at once.
+  int rank(({String address, bool virtual, bool wifi}) f) => f.wifi ? 0 : (f.virtual ? 2 : 1);
+  return [
+    for (final f in [...found]..sort((a, b) => rank(a) - rank(b))) f.address,
   ];
 }
+
+/// Names Windows/Android give to virtual network adapters.
+bool isVirtualAdapter(String name) => RegExp(
+  r'virtual|vbox|vmware|vethernet|hyper-v|wsl|docker|loopback|vpn|tap|tun',
+  caseSensitive: false,
+).hasMatch(name);
 
 bool _isPrivate(String ip) {
   final p = ip.split('.').map(int.tryParse).toList();
