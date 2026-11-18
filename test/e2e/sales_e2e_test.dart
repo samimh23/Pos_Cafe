@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../order_helpers.dart';
 import 'package:pos_cafe/core/api/pos_api.dart';
 import 'package:pos_cafe/core/db/app_database.dart';
 import 'package:pos_cafe/core/device/device_repository.dart';
@@ -79,16 +80,16 @@ void main() {
       await orders.addProduct(products['Express']!);
       await orders.addProduct(products['Express']!);
       await orders.addProduct(products['Croissant']!);
-      final r1 = await orders.payCash(tendered: const Money.dt(5), deviceCode: identity.deviceCode);
+      final r1 = await orders.payCounterCash(tendered: const Money.dt(5), deviceCode: identity.deviceCode);
 
       // Order 2: Cappuccino + extra shot → 4.000
       final shot = parseModifierGroups(products['Cappuccino']!.modifierGroupsJson).single.options.single;
       await orders.addProduct(products['Cappuccino']!, modifiers: [shot]);
-      final r2 = await orders.payCash(tendered: const Money.dt(4), deviceCode: identity.deviceCode);
+      final r2 = await orders.payCounterCash(tendered: const Money.dt(4), deviceCode: identity.deviceCode);
 
       // Order 3: cancelled
       await orders.addProduct(products['Express']!);
-      await orders.cancelOpenOrder();
+      await orders.cancelCounterOrder();
 
       final pushed = await engine.pushPending();
       // ignore: avoid_print

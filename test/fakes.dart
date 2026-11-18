@@ -74,6 +74,8 @@ class FakePosApi implements PosApi {
       'categories': cursor == null ? categories : changedCategories,
       'products': cursor == null ? products : changedProducts,
       'staff': cursor == null ? staff.where((s) => s['active'] == true).toList() : changedStaff,
+      'areas': cursor == null ? areas : changedAreas,
+      'tables': cursor == null ? tables : changedTables,
     });
   }
 
@@ -82,6 +84,25 @@ class FakePosApi implements PosApi {
     {'id': 'staff-ahmed', 'name': 'Ahmed', 'role': 'server', 'pinHash': ahmedPinHash, 'active': true},
   ];
   List<Map<String, dynamic>> changedStaff = [];
+
+  /// Rooms and tables — empty by default (a café without tables goes straight to the counter).
+  List<Map<String, dynamic>> areas = [];
+  List<Map<String, dynamic>> tables = [];
+  List<Map<String, dynamic>> changedAreas = [];
+  List<Map<String, dynamic>> changedTables = [];
+
+  /// "Salle" with tables 1–4 and "Terrasse" with T1.
+  void withFloor() {
+    areas = [
+      {'id': 'area-salle', 'name': 'Salle', 'sortOrder': 0, 'deleted': false},
+      {'id': 'area-terrasse', 'name': 'Terrasse', 'sortOrder': 1, 'deleted': false},
+    ];
+    tables = [
+      for (var i = 1; i <= 4; i++)
+        {'id': 'table-$i', 'areaId': 'area-salle', 'name': '$i', 'seats': 4, 'sortOrder': i, 'deleted': false},
+      {'id': 'table-t1', 'areaId': 'area-terrasse', 'name': 'T1', 'seats': 2, 'sortOrder': 0, 'deleted': false},
+    ];
+  }
 
   /// What the next pull (with a cursor) returns — e.g. a price change or `deleted: true`.
   List<Map<String, dynamic>> changedCategories = [];

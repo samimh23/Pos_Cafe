@@ -9,6 +9,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../order_helpers.dart';
 import 'package:pos_cafe/core/api/pos_api.dart';
 import 'package:pos_cafe/core/db/app_database.dart';
 import 'package:pos_cafe/core/device/device_repository.dart';
@@ -48,7 +49,7 @@ void main() {
       await orders.addProduct(products[0]);
       await orders.addProduct(products[0]);
       await orders.addProduct(products[1]);
-      final paid = await orders.payCash(tendered: const Money.dt(50), deviceCode: identity.deviceCode);
+      final paid = await orders.payCounterCash(tendered: const Money.dt(50), deviceCode: identity.deviceCode);
       // ignore: avoid_print
       print('paid ${paid.receiptNumber}: total ${paid.total}, change ${paid.change}');
 

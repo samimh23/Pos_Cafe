@@ -83,6 +83,34 @@ class SyncEngine {
               StaffMembersCompanion.insert(id: st['id'], name: st['name'], role: st['role'], pinHash: st['pinHash']),
         ]);
 
+        // Rooms and tables: same rules as the menu.
+        final goneAreas = [
+          for (final a in res.areas)
+            if (isDeleted(a)) a['id'] as String,
+        ];
+        final goneTables = [
+          for (final t in res.tables)
+            if (isDeleted(t)) t['id'] as String,
+        ];
+        if (goneTables.isNotEmpty) b.deleteWhere(_db.diningTables, (t) => t.id.isIn(goneTables));
+        if (goneAreas.isNotEmpty) b.deleteWhere(_db.floorAreas, (t) => t.id.isIn(goneAreas));
+        b.insertAllOnConflictUpdate(_db.floorAreas, [
+          for (final a in res.areas)
+            if (!isDeleted(a))
+              FloorAreasCompanion.insert(id: a['id'], name: a['name'], sortOrder: Value((a['sortOrder'] as int?) ?? 0)),
+        ]);
+        b.insertAllOnConflictUpdate(_db.diningTables, [
+          for (final t in res.tables)
+            if (!isDeleted(t))
+              DiningTablesCompanion.insert(
+                id: t['id'],
+                areaId: t['areaId'],
+                name: t['name'],
+                seats: Value((t['seats'] as int?) ?? 4),
+                sortOrder: Value((t['sortOrder'] as int?) ?? 0),
+              ),
+        ]);
+
         b.insertAllOnConflictUpdate(_db.categories, [
           for (final c in res.categories)
             if (!isDeleted(c))
@@ -111,7 +139,7 @@ class SyncEngine {
       });
       await _db.setKv(_cursorKey, res.cursor);
     });
-    return res.categories.length + res.products.length + res.staff.length;
+    return res.categories.length + res.products.length + res.staff.length + res.areas.length + res.tables.length;
   }
 
   Map<String, Object?> _toJson(OutboxRow e) => {

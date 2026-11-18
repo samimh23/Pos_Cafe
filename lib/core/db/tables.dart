@@ -72,7 +72,7 @@ class OutboxEvents extends Table {
 
 // ── Sales (owned by this device; every change also records an event) ──────
 
-/// One customer order. Only one `open` order at a time on a POS for now.
+/// One customer order. Several can be open at once: one per table + the counter (v5).
 @DataClassName('OrderRow')
 class Orders extends Table {
   TextColumn get id => text()();
@@ -82,7 +82,11 @@ class Orders extends Table {
 
   /// takeaway | table
   TextColumn get type => text().withDefault(const Constant('takeaway'))();
+  /// Table name snapshot ("4") — stays right even if the table is renamed later.
   TextColumn get tableLabel => text().nullable()();
+
+  /// Table the order is on; null = counter / takeaway (v5).
+  TextColumn get tableId => text().nullable()();
   DateTimeColumn get openedAt => dateTime()();
   DateTimeColumn get closedAt => dateTime().nullable()();
 
@@ -120,6 +124,9 @@ class OrderLines extends Table {
   BoolColumn get voided => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
 
+  /// Set when this line was paid on its own ("split by items", v5) — it can't be changed anymore.
+  TextColumn get paymentId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -150,6 +157,30 @@ class StaffMembers extends Table {
   /// manager | cashier | server | kitchen
   TextColumn get role => text()();
   TextColumn get pinHash => text()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Rooms ("Salle", "Terrasse") — owned by the cloud, filled by sync pull (v5).
+@DataClassName('AreaRow')
+class FloorAreas extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Tables customers sit at — owned by the cloud, filled by sync pull (v5).
+@DataClassName('DiningTableRow')
+class DiningTables extends Table {
+  TextColumn get id => text()();
+  TextColumn get areaId => text()();
+  TextColumn get name => text()();
+  IntColumn get seats => integer().withDefault(const Constant(4))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {id};

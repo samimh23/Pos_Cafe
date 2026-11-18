@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../order_helpers.dart';
 import 'package:pos_cafe/core/db/app_database.dart';
 import 'package:pos_cafe/core/menu/modifiers.dart';
 import 'package:pos_cafe/core/money/money.dart';
@@ -92,7 +93,7 @@ void main() {
     await orders.addProduct(express);
     await orders.addProduct(croissant);
 
-    final r = await orders.payCash(tendered: const Money.dt(5), deviceCode: 'T1');
+    final r = await orders.payCounterCash(tendered: const Money.dt(5), deviceCode: 'T1');
 
     expect(r.receiptNumber, 'T1-000001');
     expect(r.total, const Money(2700));
@@ -112,7 +113,7 @@ void main() {
 
     // Next order gets the next receipt number.
     await orders.addProduct(express);
-    expect((await orders.payCash(tendered: const Money(1200), deviceCode: 'T1')).receiptNumber, 'T1-000002');
+    expect((await orders.payCounterCash(tendered: const Money(1200), deviceCode: 'T1')).receiptNumber, 'T1-000002');
   });
 
   test('not enough cash → refused, nothing saved', () async {
@@ -120,7 +121,7 @@ void main() {
     final before = (await outbox.pending()).length;
 
     await expectLater(
-      orders.payCash(tendered: const Money(1000), deviceCode: 'T1'),
+      orders.payCounterCash(tendered: const Money(1000), deviceCode: 'T1'),
       throwsA(isA<OrderException>().having((e) => e.message, 'message', contains('insuffisant'))),
     );
     expect((await db.select(db.orders).getSingle()).status, 'open');
@@ -130,7 +131,7 @@ void main() {
 
   test('cancel the open order', () async {
     await orders.addProduct(express);
-    await orders.cancelOpenOrder();
+    await orders.cancelCounterOrder();
     expect(await orders.watchOpenOrder().first, isNull);
     expect((await db.select(db.orders).getSingle()).status, 'cancelled');
     expect((await eventTypes()).last, 'order.cancelled');
@@ -139,7 +140,7 @@ void main() {
   test('event sequence numbers stay continuous across all actions', () async {
     await orders.addProduct(express);
     await orders.addProduct(express);
-    await orders.payCash(tendered: const Money(2400), deviceCode: 'T1');
+    await orders.payCounterCash(tendered: const Money(2400), deviceCode: 'T1');
     final seqs = [for (final e in await outbox.pending()) e.deviceSeq];
     expect(seqs, List.generate(seqs.length, (i) => i + 1));
   });

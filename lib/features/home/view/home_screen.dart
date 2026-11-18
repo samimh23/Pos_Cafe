@@ -7,6 +7,7 @@ import '../../../core/device/device_repository.dart';
 import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/sync_controller.dart';
+import '../../floor/view_model/floor_view_model.dart';
 import '../../order/view/modifiers_dialog.dart';
 import '../../order/view/ticket_panel.dart';
 import '../../order/view_model/order_view_model.dart';
@@ -16,7 +17,7 @@ import '../view_model/home_view_model.dart';
 Color _hex(String? hex) =>
     hex == null || hex.length != 7 ? Colors.blueGrey : Color(int.parse('FF${hex.substring(1)}', radix: 16));
 
-/// POS home: menu from the local DB + sync status. Ordering comes next.
+/// POS ordering screen: menu from the local DB + the ticket of a table or the counter.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key, required this.identity});
   final DeviceIdentity identity;
@@ -24,32 +25,21 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(syncControllerProvider); // keeps the background sync running
-    final vm = ref.read(homeViewModelProvider.notifier);
+    final hasTables = ref.watch(hasTablesProvider);
 
     return Scaffold(
       appBar: AppBar(
+        leading:
+            hasTables
+                ? IconButton(
+                  key: const Key('back-to-floor'),
+                  tooltip: 'Tables',
+                  icon: const Icon(Icons.table_restaurant_outlined),
+                  onPressed: () => ref.read(ticketTargetProvider.notifier).backToFloor(),
+                )
+                : null,
         title: Text('${identity.name} · ${identity.deviceCode}${identity.isHub ? ' (Hub)' : ''}'),
-        actions: [
-          const _StaffChip(),
-          const SizedBox(width: 8),
-          const _SyncStatusChip(),
-          if (kDebugMode)
-            PopupMenuButton<String>(
-              tooltip: 'Développement',
-              onSelected:
-                  (v) => switch (v) {
-                    'event' => vm.recordTestEvent(),
-                    'forget' => vm.forgetDevice(),
-                    _ => null,
-                  },
-              itemBuilder:
-                  (_) => const [
-                    PopupMenuItem(value: 'event', child: Text('Créer un événement test')),
-                    PopupMenuItem(value: 'forget', child: Text('Dissocier cette caisse')),
-                  ],
-            ),
-          const SizedBox(width: 8),
-        ],
+        actions: const [PosAppBarActions()],
       ),
       body: const Row(
         children: [
@@ -60,6 +50,40 @@ class HomeScreen extends ConsumerWidget {
           SizedBox(width: 400, child: TicketPanel()),
         ],
       ),
+    );
+  }
+}
+
+/// Staff name, sync status, developer menu — same on the tables and order screens.
+class PosAppBarActions extends ConsumerWidget {
+  const PosAppBarActions({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vm = ref.read(homeViewModelProvider.notifier);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _StaffChip(),
+        const SizedBox(width: 8),
+        const _SyncStatusChip(),
+        if (kDebugMode)
+          PopupMenuButton<String>(
+            tooltip: 'Développement',
+            onSelected:
+                (v) => switch (v) {
+                  'event' => vm.recordTestEvent(),
+                  'forget' => vm.forgetDevice(),
+                  _ => null,
+                },
+            itemBuilder:
+                (_) => const [
+                  PopupMenuItem(value: 'event', child: Text('Créer un événement test')),
+                  PopupMenuItem(value: 'forget', child: Text('Dissocier cette caisse')),
+                ],
+          ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 }

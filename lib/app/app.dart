@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/device/device_repository.dart';
 import '../core/providers.dart';
 import '../core/sync/sync_controller.dart';
+import '../features/floor/view/floor_screen.dart';
+import '../features/floor/view_model/floor_view_model.dart';
 import '../features/home/view/home_screen.dart';
 import '../features/pairing/view/pairing_screen.dart';
 import '../features/staff_login/view/staff_login_screen.dart';
@@ -17,13 +19,19 @@ class PosCafeApp extends StatelessWidget {
     return MaterialApp(
       title: 'Pos Café',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF8B5E3C), useMaterial3: true),
+      theme: ThemeData(
+        colorSchemeSeed: const Color(0xFF8B5E3C),
+        useMaterial3: true,
+        // Floating, centred messages: they never cover the ticket's "Encaisser" button.
+        snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
+      ),
       home: const _StartGate(),
     );
   }
 }
 
-/// Not paired → pairing. Paired but nobody logged in → staff PIN login. Logged in → POS.
+/// Not paired → pairing. Paired but nobody logged in → staff PIN login.
+/// Logged in → tables (if the café has tables) → the ticket of a table or the counter.
 class _StartGate extends ConsumerWidget {
   const _StartGate();
 
@@ -47,6 +55,7 @@ class _Paired extends ConsumerWidget {
     // Sync runs on the login screen too: that's how the staff list arrives.
     ref.watch(syncControllerProvider);
     final staff = ref.watch(staffSessionProvider);
-    return staff == null ? StaffLoginScreen(identity: identity) : HomeScreen(identity: identity);
+    if (staff == null) return StaffLoginScreen(identity: identity);
+    return ref.watch(activeTargetProvider) == null ? FloorScreen(identity: identity) : HomeScreen(identity: identity);
   }
 }

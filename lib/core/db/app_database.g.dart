@@ -1771,6 +1771,17 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _tableIdMeta = const VerificationMeta(
+    'tableId',
+  );
+  @override
+  late final GeneratedColumn<String> tableId = GeneratedColumn<String>(
+    'table_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _openedAtMeta = const VerificationMeta(
     'openedAt',
   );
@@ -1820,6 +1831,7 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
     status,
     type,
     tableLabel,
+    tableId,
     openedAt,
     closedAt,
     total,
@@ -1858,6 +1870,12 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
       context.handle(
         _tableLabelMeta,
         tableLabel.isAcceptableOrUnknown(data['table_label']!, _tableLabelMeta),
+      );
+    }
+    if (data.containsKey('table_id')) {
+      context.handle(
+        _tableIdMeta,
+        tableId.isAcceptableOrUnknown(data['table_id']!, _tableIdMeta),
       );
     }
     if (data.containsKey('opened_at')) {
@@ -1917,6 +1935,10 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
         DriftSqlType.string,
         data['${effectivePrefix}table_label'],
       ),
+      tableId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}table_id'],
+      ),
       openedAt:
           attachedDatabase.typeMapping.read(
             DriftSqlType.dateTime,
@@ -1952,7 +1974,12 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
 
   /// takeaway | table
   final String type;
+
+  /// Table name snapshot ("4") — stays right even if the table is renamed later.
   final String? tableLabel;
+
+  /// Table the order is on; null = counter / takeaway (v5).
+  final String? tableId;
   final DateTime openedAt;
   final DateTime? closedAt;
 
@@ -1966,6 +1993,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     required this.status,
     required this.type,
     this.tableLabel,
+    this.tableId,
     required this.openedAt,
     this.closedAt,
     required this.total,
@@ -1979,6 +2007,9 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || tableLabel != null) {
       map['table_label'] = Variable<String>(tableLabel);
+    }
+    if (!nullToAbsent || tableId != null) {
+      map['table_id'] = Variable<String>(tableId);
     }
     map['opened_at'] = Variable<DateTime>(openedAt);
     if (!nullToAbsent || closedAt != null) {
@@ -2000,6 +2031,10 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           tableLabel == null && nullToAbsent
               ? const Value.absent()
               : Value(tableLabel),
+      tableId:
+          tableId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(tableId),
       openedAt: Value(openedAt),
       closedAt:
           closedAt == null && nullToAbsent
@@ -2023,6 +2058,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       status: serializer.fromJson<String>(json['status']),
       type: serializer.fromJson<String>(json['type']),
       tableLabel: serializer.fromJson<String?>(json['tableLabel']),
+      tableId: serializer.fromJson<String?>(json['tableId']),
       openedAt: serializer.fromJson<DateTime>(json['openedAt']),
       closedAt: serializer.fromJson<DateTime?>(json['closedAt']),
       total: serializer.fromJson<int>(json['total']),
@@ -2037,6 +2073,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       'status': serializer.toJson<String>(status),
       'type': serializer.toJson<String>(type),
       'tableLabel': serializer.toJson<String?>(tableLabel),
+      'tableId': serializer.toJson<String?>(tableId),
       'openedAt': serializer.toJson<DateTime>(openedAt),
       'closedAt': serializer.toJson<DateTime?>(closedAt),
       'total': serializer.toJson<int>(total),
@@ -2049,6 +2086,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     String? status,
     String? type,
     Value<String?> tableLabel = const Value.absent(),
+    Value<String?> tableId = const Value.absent(),
     DateTime? openedAt,
     Value<DateTime?> closedAt = const Value.absent(),
     int? total,
@@ -2058,6 +2096,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     status: status ?? this.status,
     type: type ?? this.type,
     tableLabel: tableLabel.present ? tableLabel.value : this.tableLabel,
+    tableId: tableId.present ? tableId.value : this.tableId,
     openedAt: openedAt ?? this.openedAt,
     closedAt: closedAt.present ? closedAt.value : this.closedAt,
     total: total ?? this.total,
@@ -2071,6 +2110,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       type: data.type.present ? data.type.value : this.type,
       tableLabel:
           data.tableLabel.present ? data.tableLabel.value : this.tableLabel,
+      tableId: data.tableId.present ? data.tableId.value : this.tableId,
       openedAt: data.openedAt.present ? data.openedAt.value : this.openedAt,
       closedAt: data.closedAt.present ? data.closedAt.value : this.closedAt,
       total: data.total.present ? data.total.value : this.total,
@@ -2088,6 +2128,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           ..write('status: $status, ')
           ..write('type: $type, ')
           ..write('tableLabel: $tableLabel, ')
+          ..write('tableId: $tableId, ')
           ..write('openedAt: $openedAt, ')
           ..write('closedAt: $closedAt, ')
           ..write('total: $total, ')
@@ -2102,6 +2143,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     status,
     type,
     tableLabel,
+    tableId,
     openedAt,
     closedAt,
     total,
@@ -2115,6 +2157,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           other.status == this.status &&
           other.type == this.type &&
           other.tableLabel == this.tableLabel &&
+          other.tableId == this.tableId &&
           other.openedAt == this.openedAt &&
           other.closedAt == this.closedAt &&
           other.total == this.total &&
@@ -2126,6 +2169,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
   final Value<String> status;
   final Value<String> type;
   final Value<String?> tableLabel;
+  final Value<String?> tableId;
   final Value<DateTime> openedAt;
   final Value<DateTime?> closedAt;
   final Value<int> total;
@@ -2136,6 +2180,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     this.status = const Value.absent(),
     this.type = const Value.absent(),
     this.tableLabel = const Value.absent(),
+    this.tableId = const Value.absent(),
     this.openedAt = const Value.absent(),
     this.closedAt = const Value.absent(),
     this.total = const Value.absent(),
@@ -2147,6 +2192,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     this.status = const Value.absent(),
     this.type = const Value.absent(),
     this.tableLabel = const Value.absent(),
+    this.tableId = const Value.absent(),
     required DateTime openedAt,
     this.closedAt = const Value.absent(),
     this.total = const Value.absent(),
@@ -2159,6 +2205,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     Expression<String>? status,
     Expression<String>? type,
     Expression<String>? tableLabel,
+    Expression<String>? tableId,
     Expression<DateTime>? openedAt,
     Expression<DateTime>? closedAt,
     Expression<int>? total,
@@ -2170,6 +2217,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
       if (status != null) 'status': status,
       if (type != null) 'type': type,
       if (tableLabel != null) 'table_label': tableLabel,
+      if (tableId != null) 'table_id': tableId,
       if (openedAt != null) 'opened_at': openedAt,
       if (closedAt != null) 'closed_at': closedAt,
       if (total != null) 'total': total,
@@ -2183,6 +2231,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     Value<String>? status,
     Value<String>? type,
     Value<String?>? tableLabel,
+    Value<String?>? tableId,
     Value<DateTime>? openedAt,
     Value<DateTime?>? closedAt,
     Value<int>? total,
@@ -2194,6 +2243,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
       status: status ?? this.status,
       type: type ?? this.type,
       tableLabel: tableLabel ?? this.tableLabel,
+      tableId: tableId ?? this.tableId,
       openedAt: openedAt ?? this.openedAt,
       closedAt: closedAt ?? this.closedAt,
       total: total ?? this.total,
@@ -2216,6 +2266,9 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     }
     if (tableLabel.present) {
       map['table_label'] = Variable<String>(tableLabel.value);
+    }
+    if (tableId.present) {
+      map['table_id'] = Variable<String>(tableId.value);
     }
     if (openedAt.present) {
       map['opened_at'] = Variable<DateTime>(openedAt.value);
@@ -2242,6 +2295,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
           ..write('status: $status, ')
           ..write('type: $type, ')
           ..write('tableLabel: $tableLabel, ')
+          ..write('tableId: $tableId, ')
           ..write('openedAt: $openedAt, ')
           ..write('closedAt: $closedAt, ')
           ..write('total: $total, ')
@@ -2398,6 +2452,17 @@ class $OrderLinesTable extends OrderLines
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _paymentIdMeta = const VerificationMeta(
+    'paymentId',
+  );
+  @override
+  late final GeneratedColumn<String> paymentId = GeneratedColumn<String>(
+    'payment_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2413,6 +2478,7 @@ class $OrderLinesTable extends OrderLines
     note,
     voided,
     createdAt,
+    paymentId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2523,6 +2589,12 @@ class $OrderLinesTable extends OrderLines
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('payment_id')) {
+      context.handle(
+        _paymentIdMeta,
+        paymentId.isAcceptableOrUnknown(data['payment_id']!, _paymentIdMeta),
+      );
+    }
     return context;
   }
 
@@ -2596,6 +2668,10 @@ class $OrderLinesTable extends OrderLines
             DriftSqlType.dateTime,
             data['${effectivePrefix}created_at'],
           )!,
+      paymentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_id'],
+      ),
     );
   }
 
@@ -2625,6 +2701,9 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
   final String? note;
   final bool voided;
   final DateTime createdAt;
+
+  /// Set when this line was paid on its own ("split by items", v5) — it can't be changed anymore.
+  final String? paymentId;
   const OrderLineRow({
     required this.id,
     required this.orderId,
@@ -2639,6 +2718,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     this.note,
     required this.voided,
     required this.createdAt,
+    this.paymentId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2658,6 +2738,9 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     }
     map['voided'] = Variable<bool>(voided);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || paymentId != null) {
+      map['payment_id'] = Variable<String>(paymentId);
+    }
     return map;
   }
 
@@ -2676,6 +2759,10 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       voided: Value(voided),
       createdAt: Value(createdAt),
+      paymentId:
+          paymentId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(paymentId),
     );
   }
 
@@ -2698,6 +2785,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       note: serializer.fromJson<String?>(json['note']),
       voided: serializer.fromJson<bool>(json['voided']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      paymentId: serializer.fromJson<String?>(json['paymentId']),
     );
   }
   @override
@@ -2717,6 +2805,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       'note': serializer.toJson<String?>(note),
       'voided': serializer.toJson<bool>(voided),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'paymentId': serializer.toJson<String?>(paymentId),
     };
   }
 
@@ -2734,6 +2823,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     Value<String?> note = const Value.absent(),
     bool? voided,
     DateTime? createdAt,
+    Value<String?> paymentId = const Value.absent(),
   }) => OrderLineRow(
     id: id ?? this.id,
     orderId: orderId ?? this.orderId,
@@ -2748,6 +2838,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     note: note.present ? note.value : this.note,
     voided: voided ?? this.voided,
     createdAt: createdAt ?? this.createdAt,
+    paymentId: paymentId.present ? paymentId.value : this.paymentId,
   );
   OrderLineRow copyWithCompanion(OrderLinesCompanion data) {
     return OrderLineRow(
@@ -2770,6 +2861,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       note: data.note.present ? data.note.value : this.note,
       voided: data.voided.present ? data.voided.value : this.voided,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      paymentId: data.paymentId.present ? data.paymentId.value : this.paymentId,
     );
   }
 
@@ -2788,7 +2880,8 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
           ..write('station: $station, ')
           ..write('note: $note, ')
           ..write('voided: $voided, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('paymentId: $paymentId')
           ..write(')'))
         .toString();
   }
@@ -2808,6 +2901,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     note,
     voided,
     createdAt,
+    paymentId,
   );
   @override
   bool operator ==(Object other) =>
@@ -2825,7 +2919,8 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
           other.station == this.station &&
           other.note == this.note &&
           other.voided == this.voided &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.paymentId == this.paymentId);
 }
 
 class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
@@ -2842,6 +2937,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
   final Value<String?> note;
   final Value<bool> voided;
   final Value<DateTime> createdAt;
+  final Value<String?> paymentId;
   final Value<int> rowid;
   const OrderLinesCompanion({
     this.id = const Value.absent(),
@@ -2857,6 +2953,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     this.note = const Value.absent(),
     this.voided = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.paymentId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OrderLinesCompanion.insert({
@@ -2873,6 +2970,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     this.note = const Value.absent(),
     this.voided = const Value.absent(),
     required DateTime createdAt,
+    this.paymentId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        orderId = Value(orderId),
@@ -2896,6 +2994,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     Expression<String>? note,
     Expression<bool>? voided,
     Expression<DateTime>? createdAt,
+    Expression<String>? paymentId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2912,6 +3011,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
       if (note != null) 'note': note,
       if (voided != null) 'voided': voided,
       if (createdAt != null) 'created_at': createdAt,
+      if (paymentId != null) 'payment_id': paymentId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2930,6 +3030,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     Value<String?>? note,
     Value<bool>? voided,
     Value<DateTime>? createdAt,
+    Value<String?>? paymentId,
     Value<int>? rowid,
   }) {
     return OrderLinesCompanion(
@@ -2946,6 +3047,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
       note: note ?? this.note,
       voided: voided ?? this.voided,
       createdAt: createdAt ?? this.createdAt,
+      paymentId: paymentId ?? this.paymentId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2992,6 +3094,9 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (paymentId.present) {
+      map['payment_id'] = Variable<String>(paymentId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3014,6 +3119,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
           ..write('note: $note, ')
           ..write('voided: $voided, ')
           ..write('createdAt: $createdAt, ')
+          ..write('paymentId: $paymentId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3805,6 +3911,616 @@ class StaffMembersCompanion extends UpdateCompanion<StaffRow> {
   }
 }
 
+class $FloorAreasTable extends FloorAreas
+    with TableInfo<$FloorAreasTable, AreaRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FloorAreasTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, sortOrder];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'floor_areas';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AreaRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AreaRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AreaRow(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      sortOrder:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}sort_order'],
+          )!,
+    );
+  }
+
+  @override
+  $FloorAreasTable createAlias(String alias) {
+    return $FloorAreasTable(attachedDatabase, alias);
+  }
+}
+
+class AreaRow extends DataClass implements Insertable<AreaRow> {
+  final String id;
+  final String name;
+  final int sortOrder;
+  const AreaRow({
+    required this.id,
+    required this.name,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  FloorAreasCompanion toCompanion(bool nullToAbsent) {
+    return FloorAreasCompanion(
+      id: Value(id),
+      name: Value(name),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory AreaRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AreaRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  AreaRow copyWith({String? id, String? name, int? sortOrder}) => AreaRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  AreaRow copyWithCompanion(FloorAreasCompanion data) {
+    return AreaRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AreaRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AreaRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.sortOrder == this.sortOrder);
+}
+
+class FloorAreasCompanion extends UpdateCompanion<AreaRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const FloorAreasCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FloorAreasCompanion.insert({
+    required String id,
+    required String name,
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name);
+  static Insertable<AreaRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FloorAreasCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return FloorAreasCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FloorAreasCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DiningTablesTable extends DiningTables
+    with TableInfo<$DiningTablesTable, DiningTableRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DiningTablesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _areaIdMeta = const VerificationMeta('areaId');
+  @override
+  late final GeneratedColumn<String> areaId = GeneratedColumn<String>(
+    'area_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _seatsMeta = const VerificationMeta('seats');
+  @override
+  late final GeneratedColumn<int> seats = GeneratedColumn<int>(
+    'seats',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(4),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, areaId, name, seats, sortOrder];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'dining_tables';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DiningTableRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('area_id')) {
+      context.handle(
+        _areaIdMeta,
+        areaId.isAcceptableOrUnknown(data['area_id']!, _areaIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_areaIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('seats')) {
+      context.handle(
+        _seatsMeta,
+        seats.isAcceptableOrUnknown(data['seats']!, _seatsMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DiningTableRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DiningTableRow(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      areaId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}area_id'],
+          )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      seats:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}seats'],
+          )!,
+      sortOrder:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}sort_order'],
+          )!,
+    );
+  }
+
+  @override
+  $DiningTablesTable createAlias(String alias) {
+    return $DiningTablesTable(attachedDatabase, alias);
+  }
+}
+
+class DiningTableRow extends DataClass implements Insertable<DiningTableRow> {
+  final String id;
+  final String areaId;
+  final String name;
+  final int seats;
+  final int sortOrder;
+  const DiningTableRow({
+    required this.id,
+    required this.areaId,
+    required this.name,
+    required this.seats,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['area_id'] = Variable<String>(areaId);
+    map['name'] = Variable<String>(name);
+    map['seats'] = Variable<int>(seats);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  DiningTablesCompanion toCompanion(bool nullToAbsent) {
+    return DiningTablesCompanion(
+      id: Value(id),
+      areaId: Value(areaId),
+      name: Value(name),
+      seats: Value(seats),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory DiningTableRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DiningTableRow(
+      id: serializer.fromJson<String>(json['id']),
+      areaId: serializer.fromJson<String>(json['areaId']),
+      name: serializer.fromJson<String>(json['name']),
+      seats: serializer.fromJson<int>(json['seats']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'areaId': serializer.toJson<String>(areaId),
+      'name': serializer.toJson<String>(name),
+      'seats': serializer.toJson<int>(seats),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  DiningTableRow copyWith({
+    String? id,
+    String? areaId,
+    String? name,
+    int? seats,
+    int? sortOrder,
+  }) => DiningTableRow(
+    id: id ?? this.id,
+    areaId: areaId ?? this.areaId,
+    name: name ?? this.name,
+    seats: seats ?? this.seats,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  DiningTableRow copyWithCompanion(DiningTablesCompanion data) {
+    return DiningTableRow(
+      id: data.id.present ? data.id.value : this.id,
+      areaId: data.areaId.present ? data.areaId.value : this.areaId,
+      name: data.name.present ? data.name.value : this.name,
+      seats: data.seats.present ? data.seats.value : this.seats,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiningTableRow(')
+          ..write('id: $id, ')
+          ..write('areaId: $areaId, ')
+          ..write('name: $name, ')
+          ..write('seats: $seats, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, areaId, name, seats, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DiningTableRow &&
+          other.id == this.id &&
+          other.areaId == this.areaId &&
+          other.name == this.name &&
+          other.seats == this.seats &&
+          other.sortOrder == this.sortOrder);
+}
+
+class DiningTablesCompanion extends UpdateCompanion<DiningTableRow> {
+  final Value<String> id;
+  final Value<String> areaId;
+  final Value<String> name;
+  final Value<int> seats;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const DiningTablesCompanion({
+    this.id = const Value.absent(),
+    this.areaId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.seats = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DiningTablesCompanion.insert({
+    required String id,
+    required String areaId,
+    required String name,
+    this.seats = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       areaId = Value(areaId),
+       name = Value(name);
+  static Insertable<DiningTableRow> custom({
+    Expression<String>? id,
+    Expression<String>? areaId,
+    Expression<String>? name,
+    Expression<int>? seats,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (areaId != null) 'area_id': areaId,
+      if (name != null) 'name': name,
+      if (seats != null) 'seats': seats,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DiningTablesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? areaId,
+    Value<String>? name,
+    Value<int>? seats,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return DiningTablesCompanion(
+      id: id ?? this.id,
+      areaId: areaId ?? this.areaId,
+      name: name ?? this.name,
+      seats: seats ?? this.seats,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (areaId.present) {
+      map['area_id'] = Variable<String>(areaId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (seats.present) {
+      map['seats'] = Variable<int>(seats.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiningTablesCompanion(')
+          ..write('id: $id, ')
+          ..write('areaId: $areaId, ')
+          ..write('name: $name, ')
+          ..write('seats: $seats, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3816,6 +4532,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $OrderLinesTable orderLines = $OrderLinesTable(this);
   late final $PaymentsTable payments = $PaymentsTable(this);
   late final $StaffMembersTable staffMembers = $StaffMembersTable(this);
+  late final $FloorAreasTable floorAreas = $FloorAreasTable(this);
+  late final $DiningTablesTable diningTables = $DiningTablesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3829,6 +4547,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     orderLines,
     payments,
     staffMembers,
+    floorAreas,
+    diningTables,
   ];
 }
 
@@ -4758,6 +5478,7 @@ typedef $$OrdersTableCreateCompanionBuilder =
       Value<String> status,
       Value<String> type,
       Value<String?> tableLabel,
+      Value<String?> tableId,
       required DateTime openedAt,
       Value<DateTime?> closedAt,
       Value<int> total,
@@ -4770,6 +5491,7 @@ typedef $$OrdersTableUpdateCompanionBuilder =
       Value<String> status,
       Value<String> type,
       Value<String?> tableLabel,
+      Value<String?> tableId,
       Value<DateTime> openedAt,
       Value<DateTime?> closedAt,
       Value<int> total,
@@ -4803,6 +5525,11 @@ class $$OrdersTableFilterComposer
 
   ColumnFilters<String> get tableLabel => $composableBuilder(
     column: $table.tableLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tableId => $composableBuilder(
+    column: $table.tableId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4856,6 +5583,11 @@ class $$OrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get tableId => $composableBuilder(
+    column: $table.tableId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get openedAt => $composableBuilder(
     column: $table.openedAt,
     builder: (column) => ColumnOrderings(column),
@@ -4899,6 +5631,9 @@ class $$OrdersTableAnnotationComposer
     column: $table.tableLabel,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get tableId =>
+      $composableBuilder(column: $table.tableId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get openedAt =>
       $composableBuilder(column: $table.openedAt, builder: (column) => column);
@@ -4947,6 +5682,7 @@ class $$OrdersTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String?> tableLabel = const Value.absent(),
+                Value<String?> tableId = const Value.absent(),
                 Value<DateTime> openedAt = const Value.absent(),
                 Value<DateTime?> closedAt = const Value.absent(),
                 Value<int> total = const Value.absent(),
@@ -4957,6 +5693,7 @@ class $$OrdersTableTableManager
                 status: status,
                 type: type,
                 tableLabel: tableLabel,
+                tableId: tableId,
                 openedAt: openedAt,
                 closedAt: closedAt,
                 total: total,
@@ -4969,6 +5706,7 @@ class $$OrdersTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String?> tableLabel = const Value.absent(),
+                Value<String?> tableId = const Value.absent(),
                 required DateTime openedAt,
                 Value<DateTime?> closedAt = const Value.absent(),
                 Value<int> total = const Value.absent(),
@@ -4979,6 +5717,7 @@ class $$OrdersTableTableManager
                 status: status,
                 type: type,
                 tableLabel: tableLabel,
+                tableId: tableId,
                 openedAt: openedAt,
                 closedAt: closedAt,
                 total: total,
@@ -5029,6 +5768,7 @@ typedef $$OrderLinesTableCreateCompanionBuilder =
       Value<String?> note,
       Value<bool> voided,
       required DateTime createdAt,
+      Value<String?> paymentId,
       Value<int> rowid,
     });
 typedef $$OrderLinesTableUpdateCompanionBuilder =
@@ -5046,6 +5786,7 @@ typedef $$OrderLinesTableUpdateCompanionBuilder =
       Value<String?> note,
       Value<bool> voided,
       Value<DateTime> createdAt,
+      Value<String?> paymentId,
       Value<int> rowid,
     });
 
@@ -5120,6 +5861,11 @@ class $$OrderLinesTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentId => $composableBuilder(
+    column: $table.paymentId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5197,6 +5943,11 @@ class $$OrderLinesTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get paymentId => $composableBuilder(
+    column: $table.paymentId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OrderLinesTableAnnotationComposer
@@ -5250,6 +6001,9 @@ class $$OrderLinesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get paymentId =>
+      $composableBuilder(column: $table.paymentId, builder: (column) => column);
 }
 
 class $$OrderLinesTableTableManager
@@ -5296,6 +6050,7 @@ class $$OrderLinesTableTableManager
                 Value<String?> note = const Value.absent(),
                 Value<bool> voided = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> paymentId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderLinesCompanion(
                 id: id,
@@ -5311,6 +6066,7 @@ class $$OrderLinesTableTableManager
                 note: note,
                 voided: voided,
                 createdAt: createdAt,
+                paymentId: paymentId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5328,6 +6084,7 @@ class $$OrderLinesTableTableManager
                 Value<String?> note = const Value.absent(),
                 Value<bool> voided = const Value.absent(),
                 required DateTime createdAt,
+                Value<String?> paymentId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderLinesCompanion.insert(
                 id: id,
@@ -5343,6 +6100,7 @@ class $$OrderLinesTableTableManager
                 note: note,
                 voided: voided,
                 createdAt: createdAt,
+                paymentId: paymentId,
                 rowid: rowid,
               ),
           withReferenceMapper:
@@ -5807,6 +6565,377 @@ typedef $$StaffMembersTableProcessedTableManager =
       StaffRow,
       PrefetchHooks Function()
     >;
+typedef $$FloorAreasTableCreateCompanionBuilder =
+    FloorAreasCompanion Function({
+      required String id,
+      required String name,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$FloorAreasTableUpdateCompanionBuilder =
+    FloorAreasCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+class $$FloorAreasTableFilterComposer
+    extends Composer<_$AppDatabase, $FloorAreasTable> {
+  $$FloorAreasTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FloorAreasTableOrderingComposer
+    extends Composer<_$AppDatabase, $FloorAreasTable> {
+  $$FloorAreasTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FloorAreasTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FloorAreasTable> {
+  $$FloorAreasTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+}
+
+class $$FloorAreasTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FloorAreasTable,
+          AreaRow,
+          $$FloorAreasTableFilterComposer,
+          $$FloorAreasTableOrderingComposer,
+          $$FloorAreasTableAnnotationComposer,
+          $$FloorAreasTableCreateCompanionBuilder,
+          $$FloorAreasTableUpdateCompanionBuilder,
+          (AreaRow, BaseReferences<_$AppDatabase, $FloorAreasTable, AreaRow>),
+          AreaRow,
+          PrefetchHooks Function()
+        > {
+  $$FloorAreasTableTableManager(_$AppDatabase db, $FloorAreasTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$FloorAreasTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$FloorAreasTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$FloorAreasTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FloorAreasCompanion(
+                id: id,
+                name: name,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FloorAreasCompanion.insert(
+                id: id,
+                name: name,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FloorAreasTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FloorAreasTable,
+      AreaRow,
+      $$FloorAreasTableFilterComposer,
+      $$FloorAreasTableOrderingComposer,
+      $$FloorAreasTableAnnotationComposer,
+      $$FloorAreasTableCreateCompanionBuilder,
+      $$FloorAreasTableUpdateCompanionBuilder,
+      (AreaRow, BaseReferences<_$AppDatabase, $FloorAreasTable, AreaRow>),
+      AreaRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DiningTablesTableCreateCompanionBuilder =
+    DiningTablesCompanion Function({
+      required String id,
+      required String areaId,
+      required String name,
+      Value<int> seats,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$DiningTablesTableUpdateCompanionBuilder =
+    DiningTablesCompanion Function({
+      Value<String> id,
+      Value<String> areaId,
+      Value<String> name,
+      Value<int> seats,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+class $$DiningTablesTableFilterComposer
+    extends Composer<_$AppDatabase, $DiningTablesTable> {
+  $$DiningTablesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get areaId => $composableBuilder(
+    column: $table.areaId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get seats => $composableBuilder(
+    column: $table.seats,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DiningTablesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DiningTablesTable> {
+  $$DiningTablesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get areaId => $composableBuilder(
+    column: $table.areaId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get seats => $composableBuilder(
+    column: $table.seats,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DiningTablesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DiningTablesTable> {
+  $$DiningTablesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get areaId =>
+      $composableBuilder(column: $table.areaId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get seats =>
+      $composableBuilder(column: $table.seats, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+}
+
+class $$DiningTablesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DiningTablesTable,
+          DiningTableRow,
+          $$DiningTablesTableFilterComposer,
+          $$DiningTablesTableOrderingComposer,
+          $$DiningTablesTableAnnotationComposer,
+          $$DiningTablesTableCreateCompanionBuilder,
+          $$DiningTablesTableUpdateCompanionBuilder,
+          (
+            DiningTableRow,
+            BaseReferences<_$AppDatabase, $DiningTablesTable, DiningTableRow>,
+          ),
+          DiningTableRow,
+          PrefetchHooks Function()
+        > {
+  $$DiningTablesTableTableManager(_$AppDatabase db, $DiningTablesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$DiningTablesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$DiningTablesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () =>
+                  $$DiningTablesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> areaId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> seats = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiningTablesCompanion(
+                id: id,
+                areaId: areaId,
+                name: name,
+                seats: seats,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String areaId,
+                required String name,
+                Value<int> seats = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiningTablesCompanion.insert(
+                id: id,
+                areaId: areaId,
+                name: name,
+                seats: seats,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DiningTablesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DiningTablesTable,
+      DiningTableRow,
+      $$DiningTablesTableFilterComposer,
+      $$DiningTablesTableOrderingComposer,
+      $$DiningTablesTableAnnotationComposer,
+      $$DiningTablesTableCreateCompanionBuilder,
+      $$DiningTablesTableUpdateCompanionBuilder,
+      (
+        DiningTableRow,
+        BaseReferences<_$AppDatabase, $DiningTablesTable, DiningTableRow>,
+      ),
+      DiningTableRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5827,4 +6956,8 @@ class $AppDatabaseManager {
       $$PaymentsTableTableManager(_db, _db.payments);
   $$StaffMembersTableTableManager get staffMembers =>
       $$StaffMembersTableTableManager(_db, _db.staffMembers);
+  $$FloorAreasTableTableManager get floorAreas =>
+      $$FloorAreasTableTableManager(_db, _db.floorAreas);
+  $$DiningTablesTableTableManager get diningTables =>
+      $$DiningTablesTableTableManager(_db, _db.diningTables);
 }
