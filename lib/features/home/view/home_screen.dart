@@ -7,6 +7,7 @@ import '../../../core/device/device_repository.dart';
 import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/sync_controller.dart';
+import '../../../core/lan/hub_widgets.dart';
 import '../../floor/view_model/floor_view_model.dart';
 import '../../order/view/modifiers_dialog.dart';
 import '../../order/view/ticket_panel.dart';
@@ -41,13 +42,20 @@ class HomeScreen extends ConsumerWidget {
         title: Text('${identity.name} · ${identity.deviceCode}${identity.isHub ? ' (Hub)' : ''}'),
         actions: const [PosAppBarActions()],
       ),
-      body: const Row(
+      body: const Column(
         children: [
-          SizedBox(width: 190, child: _CategoryList()),
-          VerticalDivider(width: 1),
-          Expanded(child: _ProductGrid()),
-          VerticalDivider(width: 1),
-          SizedBox(width: 400, child: TicketPanel()),
+          HubLinkBanner(),
+          Expanded(
+            child: Row(
+              children: [
+                SizedBox(width: 190, child: _CategoryList()),
+                VerticalDivider(width: 1),
+                Expanded(child: _ProductGrid()),
+                VerticalDivider(width: 1),
+                SizedBox(width: 400, child: TicketPanel()),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -65,6 +73,8 @@ class PosAppBarActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const _StaffChip(),
+        const SizedBox(width: 8),
+        const HubStatusChip(),
         const SizedBox(width: 8),
         const _SyncStatusChip(),
         if (kDebugMode)

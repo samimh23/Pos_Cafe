@@ -13,7 +13,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Bump when tables change, and add the upgrade step below.
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +42,10 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(orders, orders.tableId);
           await m.addColumn(orderLines, orderLines.paymentId);
         }
+      }
+      if (from < 6 && from >= 2) {
+        // v6: "Demander l'addition" from a server tablet
+        await m.addColumn(orders, orders.billRequestedAt);
       }
     },
   );

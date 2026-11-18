@@ -66,6 +66,12 @@ abstract class PosApi {
   Future<void> me();
   Future<PushResponse> push(List<Map<String, Object?>> events);
   Future<PullResponse> pull(String? cursor);
+
+  /// Hub address on the café network, LAN key, devices and their payment rights.
+  Future<Map<String, dynamic>> lanInfo();
+
+  /// The Hub tells the cloud where the other POS can reach it.
+  Future<void> reportLan(List<String> addresses, int port);
 }
 
 class DioPosApi implements PosApi {
@@ -115,4 +121,11 @@ class DioPosApi implements PosApi {
   Future<PullResponse> pull(String? cursor) async => PullResponse.fromJson(
     await _call(() => _dio.get('/v1/sync/pull', queryParameters: {if (cursor != null) 'cursor': cursor})),
   );
+
+  @override
+  Future<Map<String, dynamic>> lanInfo() => _call(() => _dio.get('/v1/devices/lan'));
+
+  @override
+  Future<void> reportLan(List<String> addresses, int port) =>
+      _call(() => _dio.post('/v1/devices/me/lan', data: {'addresses': addresses, 'port': port}));
 }

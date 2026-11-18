@@ -55,6 +55,9 @@ class OpenTicket {
   final DateTime openedAt;
   final Money total;
   final Money paid;
+
+  /// A server asked for the bill.
+  final bool billRequested;
   const OpenTicket({
     required this.orderId,
     required this.tableId,
@@ -62,6 +65,7 @@ class OpenTicket {
     required this.openedAt,
     required this.total,
     required this.paid,
+    this.billRequested = false,
   });
   Money get remaining => total - paid;
 }
@@ -71,6 +75,18 @@ class OrderException implements Exception {
   const OrderException(this.message);
   @override
   String toString() => message;
+}
+
+/// What the order screen can do. On the Hub and on a POS working alone this is
+/// the local [OrderRepository]; on a server tablet the actions go to the Hub.
+abstract interface class OrderActions {
+  Future<void> addProduct(ProductRow p, {DiningTableRow? table, List<ModifierOption> modifiers});
+  Future<void> setQty(String lineId, int qty);
+  Future<void> removeLine(String lineId);
+  Future<void> cancelOrder(String orderId);
+  Future<void> moveOrder(String orderId, DiningTableRow? to);
+  Future<PaymentResult> pay(String orderId, PaymentRequest req, {required String deviceCode});
+  Future<void> requestBill(String orderId);
 }
 
 LineAmounts amountsOf(OrderLineRow l) => (
@@ -86,7 +102,7 @@ LineAmounts amountsOf(OrderLineRow l) => (
 ///
 /// Several orders can be open at once: one per table, plus one at the counter
 /// (`tableId == null`, takeaway).
-class OrderRepository {
+class OrderRepository implements OrderActions {
   OrderRepository(this._db, this._outbox, {DateTime Function()? clock, String? Function()? staffId})
     : _now = clock ?? DateTime.now,
       _staffId = staffId ?? (() => null);
@@ -118,7 +134,7 @@ class OrderRepository {
   Stream<List<OpenTicket>> watchOpenTickets() => _db
       .customSelect(
         '''
-        SELECT o.id, o.table_id, o.table_label, o.opened_at,
+        SELECT o.id, o.table_id, o.table_label, o.opened_at, o.bill_requested_at,
           COALESCE((SELECT SUM((l.unit_price + l.modifiers_price) * l.qty) FROM order_lines l
                     WHERE l.order_id = o.id AND l.voided = 0), 0) AS total,
           COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.order_id = o.id), 0) AS paid
@@ -139,6 +155,7 @@ class OrderRepository {
               openedAt: r.read<DateTime>('opened_at'),
               total: Money(r.read<int>('total')),
               paid: Money(r.read<int>('paid')),
+              billRequested: r.readNullable<DateTime>('bill_requested_at') != null,
             ),
         ],
       );
@@ -147,6 +164,7 @@ class OrderRepository {
 
   /// Adds a product to the ticket of [table] (null = counter).
   /// Same product with the same modifiers → quantity + 1 (never on an already-paid line).
+  @override
   Future<void> addProduct(ProductRow p, {DiningTableRow? table, List<ModifierOption> modifiers = const []}) {
     return _db.transaction(() async {
       final orderId = await _openOrderId(table);
@@ -201,6 +219,7 @@ class OrderRepository {
     });
   }
 
+  @override
   Future<void> setQty(String lineId, int qty) => _db.transaction(() async {
     final line = await _changeableLine(lineId);
     if (qty <= 0) {
@@ -210,10 +229,12 @@ class OrderRepository {
     }
   });
 
+  @override
   Future<void> removeLine(String lineId) =>
       _db.transaction(() async => _void(await _changeableLine(lineId), 'removed_before_send'));
 
   /// Cancels a whole open order (only before anything was paid).
+  @override
   Future<void> cancelOrder(String orderId) => _db.transaction(() async {
     final order = await _openOrder(orderId);
     if (!(await _paid(orderId)).isZero) {
@@ -231,6 +252,7 @@ class OrderRepository {
   });
 
   /// Moves a ticket to another table ([to] null = the counter). The destination must be free.
+  @override
   Future<void> moveOrder(String orderId, DiningTableRow? to) => _db.transaction(() async {
     final order = await _openOrder(orderId);
     if (order.tableId == to?.id) return;
@@ -252,8 +274,19 @@ class OrderRepository {
     );
   });
 
+  /// "Demander l'addition": marks the ticket so the cashier sees it on the Hub.
+  @override
+  Future<void> requestBill(String orderId) => _db.transaction(() async {
+    final order = await _openOrder(orderId);
+    if (order.billRequestedAt != null) return;
+    await (_db.update(_db.orders)
+      ..where((o) => o.id.equals(orderId))).write(OrdersCompanion(billRequestedAt: Value(_now())));
+    await _outbox.record(staffId: _staffId(), type: EventTypes.orderBillRequested, entityId: orderId, payload: {});
+  });
+
   /// Pays all or part of a ticket. When nothing is left to pay, the ticket gets
   /// its receipt number and closes — all in one transaction.
+  @override
   Future<PaymentResult> pay(String orderId, PaymentRequest req, {required String deviceCode}) {
     return _db.transaction(() async {
       final order = await _openOrder(orderId);

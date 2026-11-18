@@ -96,6 +96,9 @@ class Orders extends Table {
   /// "T1-000042", set when the order is paid.
   TextColumn get receiptNumber => text().nullable()();
 
+  /// A server asked for the bill ("l'addition") from a tablet (v6).
+  DateTimeColumn get billRequestedAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

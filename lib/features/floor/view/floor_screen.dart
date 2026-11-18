@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/app_database.dart';
 import '../../../core/device/device_repository.dart';
+import '../../../core/lan/hub_widgets.dart';
+import '../../../core/lan/lan_providers.dart';
 import '../../home/view/home_screen.dart' show PosAppBarActions;
 import '../../order/data/order_repository.dart';
 import '../view_model/floor_view_model.dart';
@@ -55,6 +57,7 @@ class FloorScreen extends ConsumerWidget {
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const HubLinkBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Row(
@@ -65,12 +68,14 @@ class FloorScreen extends ConsumerWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  FilledButton.tonalIcon(
-                    key: const Key('counter-tile'),
-                    icon: const Icon(Icons.shopping_bag_outlined),
-                    label: Text(counter == null ? 'Comptoir / À emporter' : 'Comptoir · ${counter.remaining}'),
-                    onPressed: () => ref.read(ticketTargetProvider.notifier).open(const CounterTarget()),
-                  ),
+                  // The counter ticket lives on the Hub (or a POS working alone), not on server tablets.
+                  if (ref.watch(posModeProvider) != PosMode.tablet)
+                    FilledButton.tonalIcon(
+                      key: const Key('counter-tile'),
+                      icon: const Icon(Icons.shopping_bag_outlined),
+                      label: Text(counter == null ? 'Comptoir / À emporter' : 'Comptoir · ${counter.remaining}'),
+                      onPressed: () => ref.read(ticketTargetProvider.notifier).open(const CounterTarget()),
+                    ),
                 ],
               ),
             ),
@@ -141,7 +146,16 @@ class _TableTile extends ConsumerWidget {
                   const SizedBox(height: 4),
                   if (busy) ...[
                     Text(ticket!.remaining.toString(), style: text.titleSmall),
-                    Text(minutes < 1 ? 'à l’instant' : '$minutes min', style: text.bodySmall),
+                    if (ticket!.billRequested)
+                      Container(
+                        key: Key('bill-requested-${table.id}'),
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(color: scheme.tertiary, borderRadius: BorderRadius.circular(8)),
+                        child: Text('Addition', style: text.labelSmall?.copyWith(color: scheme.onTertiary)),
+                      )
+                    else
+                      Text(minutes < 1 ? 'à l’instant' : '$minutes min', style: text.bodySmall),
                   ] else
                     Row(
                       mainAxisSize: MainAxisSize.min,

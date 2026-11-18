@@ -7,5 +7,6 @@ abstract final class EventTypes {
   static const orderCancelled = 'order.cancelled';
   static const orderClosed = 'order.closed';
   static const orderTableChanged = 'order.table_changed';
+  static const orderBillRequested = 'order.bill_requested';
   static const paymentAdded = 'payment.added';
 }

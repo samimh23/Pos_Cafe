@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/device/device_repository.dart';
+import '../core/lan/lan_providers.dart';
 import '../core/providers.dart';
 import '../core/sync/sync_controller.dart';
 import '../features/floor/view/floor_screen.dart';
@@ -54,6 +55,9 @@ class _Paired extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Sync runs on the login screen too: that's how the staff list arrives.
     ref.watch(syncControllerProvider);
+    // Café network: the Hub serves the tablets; a tablet connects to the Hub.
+    ref.watch(hubServerProvider);
+    ref.watch(hubClientProvider);
     final staff = ref.watch(staffSessionProvider);
     if (staff == null) return StaffLoginScreen(identity: identity);
     return ref.watch(activeTargetProvider) == null ? FloorScreen(identity: identity) : HomeScreen(identity: identity);

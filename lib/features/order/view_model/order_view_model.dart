@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/app_database.dart';
+import '../../../core/lan/lan_providers.dart';
 import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/order_totals.dart';
@@ -72,7 +73,8 @@ class OrderViewModel extends Notifier<bool> {
   @override
   bool build() => false;
 
-  OrderRepository get _repo => ref.read(orderRepositoryProvider);
+  /// Local DB, or the Hub on a server tablet.
+  OrderActions get _repo => ref.read(orderActionsProvider);
 
   DiningTableRow? get _table => switch (ref.read(activeTargetProvider)) {
     TableTarget(:final table) => table,
@@ -93,6 +95,12 @@ class OrderViewModel extends Notifier<bool> {
   Future<void> cancelOrder() async {
     final id = _orderId;
     if (id != null) await _repo.cancelOrder(id);
+  }
+
+  /// "Demander l'addition": the cashier sees it on the Hub's tables screen.
+  Future<void> requestBill() async {
+    final id = _orderId;
+    if (id != null) await _repo.requestBill(id);
   }
 
   /// Moves the ticket on screen to [to] (null = counter) and follows it there.

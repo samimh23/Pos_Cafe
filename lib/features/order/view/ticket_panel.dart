@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/lan/lan_providers.dart';
 import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/order_totals.dart';
@@ -18,6 +19,8 @@ class TicketPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ticket = ref.watch(ticketProvider);
     final target = ref.watch(activeTargetProvider);
+    final canPay = ref.watch(canTakePaymentsProvider);
+    final billRequested = ticket.order?.billRequestedAt != null;
     final hasTables = ref.watch(hasTablesProvider);
     final busy = ref.watch(orderViewModelProvider);
     final vm = ref.read(orderViewModelProvider.notifier);
@@ -40,6 +43,16 @@ class TicketPanel extends ConsumerWidget {
                   style: text.titleLarge,
                 ),
               ),
+              if (billRequested)
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Chip(
+                    key: Key('ticket-bill-requested'),
+                    avatar: Icon(Icons.receipt_long, size: 16),
+                    label: Text('Addition demandée'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
               if (hasTables && ticket.order != null)
                 IconButton(
                   key: const Key('move-ticket'),
@@ -150,12 +163,21 @@ class TicketPanel extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 height: 64,
-                child: FilledButton.icon(
-                  key: const Key('pay-cash'),
-                  icon: const Icon(Icons.payments_outlined),
-                  label: Text(ticket.isEmpty ? 'Encaisser' : 'Encaisser ${ticket.remaining}'),
-                  onPressed: ticket.isEmpty || busy ? null : () => _pay(context, vm, ticket),
-                ),
+                child:
+                    canPay
+                        ? FilledButton.icon(
+                          key: const Key('pay-cash'),
+                          icon: const Icon(Icons.payments_outlined),
+                          label: Text(ticket.isEmpty ? 'Encaisser' : 'Encaisser ${ticket.remaining}'),
+                          onPressed: ticket.isEmpty || busy ? null : () => _pay(context, vm, ticket),
+                        )
+                        // Server tablets: the cashier takes the payment at the main POS.
+                        : FilledButton.tonalIcon(
+                          key: const Key('request-bill'),
+                          icon: const Icon(Icons.receipt_long),
+                          label: Text(billRequested ? 'Addition demandée ✓' : 'Demander l’addition'),
+                          onPressed: ticket.isEmpty || billRequested ? null : () => _guard(context, vm.requestBill),
+                        ),
               ),
             ],
           ),

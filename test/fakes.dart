@@ -24,6 +24,22 @@ class FakePosApi implements PosApi {
     },
   ];
 
+  /// What GET /v1/devices/lan returns. No Hub by default (each POS works on its own).
+  Map<String, dynamic> lan = {'lanKey': 'test-lan-key', 'hub': null, 'devices': []};
+  final reportedLan = <(List<String>, int)>[];
+
+  @override
+  Future<Map<String, dynamic>> lanInfo() async {
+    _maybeFail();
+    return lan;
+  }
+
+  @override
+  Future<void> reportLan(List<String> addresses, int port) async {
+    _maybeFail();
+    reportedLan.add((addresses, port));
+  }
+
   void _maybeFail() {
     if (failWith != null) throw failWith!;
   }

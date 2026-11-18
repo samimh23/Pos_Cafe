@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../api/pos_api.dart';
 import '../db/app_database.dart';
 import '../device/device_repository.dart';
+import '../lan/lan_info.dart';
 import 'outbox_repository.dart';
 
 class SyncResult {
@@ -30,7 +31,20 @@ class SyncEngine {
   Future<SyncResult> syncNow() async {
     final push = await pushPending();
     final menu = await pullMenu();
+    await refreshLan();
     return SyncResult(pushed: push.pushed, rejected: push.rejected, menuChanges: menu);
+  }
+
+  /// Hub address, LAN key and payment rights, kept locally so the café network
+  /// keeps working when the internet is down.
+  Future<void> refreshLan() async {
+    try {
+      final info = LanInfo.fromJson(await _api.lanInfo());
+      await _db.setKv(LanInfo.kvKey, info.encode());
+    } on ApiException catch (e) {
+      if (e.isNetwork) rethrow; // offline: the sync status shows it
+      // Older backend without the endpoint: keep working on our own.
+    }
   }
 
   /// Sends the outbox in batches until it is empty.
