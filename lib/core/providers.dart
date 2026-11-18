@@ -11,12 +11,12 @@ import 'sync/outbox_repository.dart';
 /// Tests replace them with `ProviderScope(overrides: [...])`.
 
 final databaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
+  final db = AppDatabase(null, AppConfig.profile.databaseName);
   ref.onDispose(db.close);
   return db;
 });
 
-final secretStoreProvider = Provider<SecretStore>((ref) => SecureSecretStore());
+final secretStoreProvider = Provider<SecretStore>((ref) => SecureSecretStore(AppConfig.profile));
 
 final posApiProvider = Provider<PosApi>((ref) {
   final secrets = ref.watch(secretStoreProvider);

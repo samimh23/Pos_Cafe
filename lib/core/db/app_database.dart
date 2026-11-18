@@ -8,8 +8,8 @@ part 'app_database.g.dart';
 /// The POS local database (SQLite). The UI reads from it; sync fills and empties it.
 @DriftDatabase(tables: [KvEntries, Categories, Products, OutboxEvents, Orders, OrderLines, Payments, StaffMembers, FloorAreas, DiningTables])
 class AppDatabase extends _$AppDatabase {
-  /// Pass an executor in tests (`NativeDatabase.memory()`).
-  AppDatabase([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'pos_cafe'));
+  /// Pass an executor in tests (`NativeDatabase.memory()`). [name] = SQLite file (one per POS profile).
+  AppDatabase([QueryExecutor? executor, String name = 'pos_cafe']) : super(executor ?? driftDatabase(name: name));
 
   /// Bump when tables change, and add the upgrade step below.
   @override
