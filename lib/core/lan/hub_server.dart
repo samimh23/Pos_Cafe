@@ -61,6 +61,11 @@ class HubServer {
   /// Starts listening on every network interface. Returns the port.
   Future<int> start() async {
     final server = await HttpServer.bind(InternetAddress.anyIPv4, _requestedPort);
+    if (_stopped) {
+      // The app closed while the port was opening: don't leave a server running.
+      await server.close(force: true);
+      throw StateError('Hub server stopped before it started');
+    }
     _server = server;
     server.listen((req) => _handle(req).catchError((Object e) => _reply(req.response, 500, {'error': '$e'})));
     // Any change to tickets (from this POS or a tablet) → every tablet gets the new list.
@@ -70,14 +75,20 @@ class HubServer {
     return server.port;
   }
 
+  bool _stopped = false;
+
   Future<void> stop() async {
+    _stopped = true;
+    // Close the listening socket FIRST, synchronously: it also cancels the HTTP
+    // server's idle timer, even if the rest of the shutdown never gets to run.
+    final closing = _server?.close(force: true);
     _debounce?.cancel();
     await _changes?.cancel();
     for (final s in [..._sockets]) {
       await s.close();
     }
     _sockets.clear();
-    await _server?.close(force: true);
+    await closing;
     await _tablets.close();
   }
 

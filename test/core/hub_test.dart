@@ -108,7 +108,7 @@ void main() {
     () async {
       final c = await connect(tablet, tabletDb);
       await eventually(() async => c.link.connected, reason: 'tablet connects');
-      expect(server.tabletCount, 1);
+      await eventually(() async => server.tabletCount == 1, reason: 'Hub registers the tablet');
 
       final actions = HubOrderActions(c, staffId: () => 'staff-ahmed');
       await actions.addProduct(await express(tabletDb), table: await table(tabletDb, 'table-2'));
@@ -264,6 +264,30 @@ void main() {
     await eventually(() async => c.link.connected);
     expect(c.link.address, '127.0.0.1:${server.port}');
     expect(sw.elapsed, lessThan(const Duration(seconds: 2)), reason: 'did not wait for the dead address');
+  });
+
+  test('closing the app stops the Hub server, even while it is still starting', () async {
+    Future<bool> answers(int port) async {
+      try {
+        final socket = await Socket.connect('127.0.0.1', port, timeout: const Duration(seconds: 1));
+        socket.destroy();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    final a = HubServer(db: hubDb, outbox: hubOutbox, identity: hubId, lanInfo: () async => info, port: 0);
+    final port = await a.start();
+    expect(await answers(port), isTrue);
+    await a.stop();
+    expect(await answers(port), isFalse);
+
+    // stop() before the port is open: start() gives up and nothing keeps listening.
+    final b = HubServer(db: hubDb, outbox: hubOutbox, identity: hubId, lanInfo: () async => info, port: 0);
+    final starting = b.start();
+    await b.stop();
+    await expectLater(starting, throwsStateError);
   });
 
   test('LAN signatures: right key and time pass; wrong key, changed body or old timestamp fail', () async {

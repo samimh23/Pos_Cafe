@@ -57,7 +57,9 @@ final hubServerProvider = Provider<HubServer?>((ref) {
     lanInfo: () => _readLanInfo(db),
   );
   Timer? report;
+  var disposed = false;
   ref.onDispose(() {
+    disposed = true;
     report?.cancel();
     server.stop();
   });
@@ -74,7 +76,8 @@ final hubServerProvider = Provider<HubServer?>((ref) {
       }
 
       await send();
-      report = Timer.periodic(const Duration(minutes: 1), (_) => send());
+      // The app may have closed while the first report was being sent.
+      if (!disposed) report = Timer.periodic(const Duration(minutes: 1), (_) => send());
     } catch (e) {
       debugPrint('Hub server could not start: $e');
     }
