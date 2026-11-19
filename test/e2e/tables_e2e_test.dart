@@ -18,6 +18,7 @@ import 'package:pos_cafe/core/db/app_database.dart';
 import 'package:pos_cafe/core/device/device_repository.dart';
 import 'package:pos_cafe/core/device/secret_store.dart';
 import 'package:pos_cafe/core/money/money.dart';
+import 'package:pos_cafe/core/print/business_info.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
 import 'package:pos_cafe/features/cash/data/cash_repository.dart';
@@ -77,8 +78,10 @@ void main() {
       final identity = await DeviceRepository(db, secrets, api).pair(code: code, name: 'Caisse');
       final outbox = OutboxRepository(db);
       final engine = SyncEngine(db, api, outbox, identity);
-      await engine.pullMenu();
+      await engine.syncNow(); // menu, staff, tables, café details
 
+      // The receipt header comes from the cloud.
+      expect(BusinessInfo.decode(await db.getKv(BusinessInfo.kvKey))?.businessName, 'Café Tables E2E');
       final tables = {for (final t in await db.select(db.diningTables).get()) t.name: t};
       expect(tables.keys, unorderedEquals(['1', '2', '3', '4']));
       expect((await db.select(db.floorAreas).getSingle()).name, 'Salle');
