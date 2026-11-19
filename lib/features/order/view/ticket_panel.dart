@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/db/app_database.dart';
+
 import '../../../core/lan/lan_providers.dart';
 import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
@@ -12,6 +14,9 @@ import '../../print/print_providers.dart';
 import '../../../core/print/printers.dart';
 import '../data/order_repository.dart';
 import '../view_model/order_view_model.dart';
+import '../data/discounts.dart';
+import 'approval_dialog.dart';
+import 'discount_dialog.dart';
 import 'move_ticket_dialog.dart';
 import 'payment_dialog.dart';
 
@@ -61,6 +66,13 @@ class TicketPanel extends ConsumerWidget {
                     label: Text('Addition demandée'),
                     visualDensity: VisualDensity.compact,
                   ),
+                ),
+              if (ticket.unpaidLines.isNotEmpty)
+                IconButton(
+                  key: const Key('ticket-discount'),
+                  tooltip: 'Remise sur le ticket',
+                  icon: const Icon(Icons.percent),
+                  onPressed: () => _discount(context, ref, vm, what: 'tout le ticket', lines: ticket.unpaidLines),
                 ),
               if (canPay && canPrint && ticket.order != null && !ticket.isEmpty)
                 IconButton(
@@ -119,10 +131,14 @@ class TicketPanel extends ConsumerWidget {
                         subtitle: Text(
                           [
                             if (mods.isNotEmpty) mods,
-                            '${Money(l.unitPrice + l.modifiersPrice).toDecimalString()} × ${l.qty}',
+                            '${Money(l.unitPrice + l.modifiersPrice).toDecimalString()} × ${l.qty}'
+                                '${l.discountType == null ? '' : '  ·  ${discountLabel(l.discountType, l.discountValue)} (${DiscountReasons.label(l.discountReason)})'}',
                           ].join('\n'),
+                          style:
+                              l.discountType == null ? null : TextStyle(color: Theme.of(context).colorScheme.tertiary),
                         ),
                         isThreeLine: mods.isNotEmpty,
+                        onTap: paid ? null : () => _lineActions(context, ref, vm, l),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -160,6 +176,13 @@ class TicketPanel extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              if (!ticket.totals.discount.isZero)
+                Row(
+                  children: [
+                    const Expanded(child: Text('Remises & offerts')),
+                    Text('−${ticket.totals.discount}', key: const Key('ticket-discounts')),
+                  ],
+                ),
               for (final v in ticket.totals.vat)
                 Row(
                   children: [
@@ -254,6 +277,82 @@ class TicketPanel extends ConsumerWidget {
     } on OrderException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message), duration: const Duration(seconds: 8)));
     }
+  }
+
+  /// Tap on an item: offer it, discount it, or remove its discount.
+  Future<void> _lineActions(BuildContext context, WidgetRef ref, OrderViewModel vm, OrderLineRow l) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder:
+          (c) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(title: Text('${l.qty} × ${l.name}', style: Theme.of(c).textTheme.titleMedium)),
+                ListTile(
+                  key: const Key('line-offer'),
+                  leading: const Icon(Icons.card_giftcard),
+                  title: const Text('Offrir'),
+                  onTap: () => Navigator.pop(c, 'offer'),
+                ),
+                ListTile(
+                  key: const Key('line-discount'),
+                  leading: const Icon(Icons.percent),
+                  title: const Text('Remise…'),
+                  onTap: () => Navigator.pop(c, 'discount'),
+                ),
+                if (l.discountType != null)
+                  ListTile(
+                    key: const Key('line-undiscount'),
+                    leading: const Icon(Icons.undo),
+                    title: const Text('Retirer la remise'),
+                    onTap: () => Navigator.pop(c, 'remove'),
+                  ),
+              ],
+            ),
+          ),
+    );
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case 'offer':
+        // "Offrir" = free, reason "Geste commercial"; still needs a manager.
+        final approver = await askManagerApproval(context, ref, what: 'Offert : ${l.qty} × ${l.name}');
+        if (approver == null || !context.mounted) return;
+        await _guard(
+          context,
+          () => vm.discount(DiscountRequest.free(reason: 'geste', lineIds: [l.id], approvedBy: approver)),
+        );
+      case 'discount':
+        await _discount(context, ref, vm, what: '${l.qty} × ${l.name}', lines: [l], only: true);
+      case 'remove':
+        await _guard(context, () => vm.removeDiscount([l.id]));
+    }
+  }
+
+  /// Discount dialog → manager approval → apply.
+  Future<void> _discount(
+    BuildContext context,
+    WidgetRef ref,
+    OrderViewModel vm, {
+    required String what,
+    required List<OrderLineRow> lines,
+    bool only = false,
+  }) async {
+    final gross = lines.fold(Money.zero, (sum, l) => sum + lineGross(amountsOf(l)));
+    final request = await showDiscountDialog(
+      context,
+      what: what,
+      gross: gross,
+      lineIds: only ? [for (final l in lines) l.id] : const [],
+    );
+    if (request == null || !context.mounted) return;
+    final approver = await askManagerApproval(
+      context,
+      ref,
+      what: '${discountLabel(request.type, request.value)} sur $what (${DiscountReasons.label(request.reason)})',
+    );
+    if (approver == null || !context.mounted) return;
+    await _guard(context, () => vm.discount(request.approved(approver)));
   }
 
   /// Shows refusals (e.g. "Cet article est déjà payé.") instead of failing silently.

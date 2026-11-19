@@ -134,6 +134,18 @@ class OrderLines extends Table {
   /// When the line was sent to the bar / kitchen printer (v8). Null = not sent yet.
   DateTimeColumn get sentAt => dateTime().nullable()();
 
+  /// Discount (v9): free | percent | amount; null = none. See money/order_totals discountOf.
+  TextColumn get discountType => text().nullable()();
+
+  /// Basis points for percent (1000 = 10 %), millimes for amount.
+  IntColumn get discountValue => integer().withDefault(const Constant(0))();
+
+  /// geste | staff | error | complaint | other
+  TextColumn get discountReason => text().nullable()();
+
+  /// Manager who approved the discount.
+  TextColumn get discountApprovedBy => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

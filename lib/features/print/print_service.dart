@@ -11,6 +11,7 @@ import '../../core/print/windows_printer.dart';
 import '../../core/sync/outbox_repository.dart';
 import '../../core/sync/sync_event_types.dart';
 import '../cash/data/cash_repository.dart';
+import '../order/data/discounts.dart';
 import '../order/data/order_repository.dart' show amountsOf;
 
 /// What was sent where by "Envoyer".
@@ -72,7 +73,12 @@ class PrintService implements PrintActions {
     qty: l.qty,
     name: l.name,
     modifiers: [for (final m in parseChosenModifiers(l.modifiersJson)) m.name],
-    total: lineTotal(amountsOf(l)),
+    total: lineGross(amountsOf(l)),
+    discountText:
+        l.discountType == null
+            ? null
+            : '${discountLabel(l.discountType, l.discountValue)} (${DiscountReasons.label(l.discountReason)})',
+    discount: lineDiscount(amountsOf(l)),
   );
 
   Future<OrderRow> _order(String id) async {
@@ -236,6 +242,7 @@ class PrintService implements PrintActions {
         counted: c.counted,
         cardSales: s.cardSales,
         tickets: s.ticketCount,
+        discounts: s.discounts,
         note: c.note,
       ),
     );

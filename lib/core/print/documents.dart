@@ -10,8 +10,21 @@ class PrintLine {
   final int qty;
   final String name;
   final List<String> modifiers;
+
+  /// Price × quantity, before discount.
   final Money total;
-  const PrintLine({required this.qty, required this.name, this.modifiers = const [], required this.total});
+
+  /// "Offert (Geste commercial)" and its amount, when discounted.
+  final String? discountText;
+  final Money discount;
+  const PrintLine({
+    required this.qty,
+    required this.name,
+    this.modifiers = const [],
+    required this.total,
+    this.discountText,
+    this.discount = Money.zero,
+  });
 }
 
 class PrintPayment {
@@ -45,7 +58,13 @@ void _lines(EscPos p, List<PrintLine> lines) {
     for (final m in l.modifiers) {
       p.text('   + $m');
     }
+    if (l.discountText != null) p.row('   ${l.discountText}', (-l.discount).toDecimalString());
   }
+}
+
+void _discountTotal(EscPos p, List<PrintLine> lines) {
+  final d = lines.fold(Money.zero, (sum, l) => sum + l.discount);
+  if (!d.isZero) p.row('Remises & offerts', (-d).toDecimalString());
 }
 
 /// The customer receipt ("ticket de caisse"), printed when the ticket is fully paid.
@@ -68,8 +87,9 @@ Uint8List receiptDocument({
   if (staff != null) p.text('Servi par $staff');
   p.separator();
   _lines(p, lines);
+  p.separator();
+  _discountTotal(p, lines);
   p
-    ..separator()
     ..bold()
     ..big()
     ..text('TOTAL ${total.toDecimalString()} DT', at: EscPos.right, isBig: true)
@@ -123,8 +143,9 @@ Uint8List billDocument({
   if (staff != null) p.text('Servi par $staff');
   p.separator();
   _lines(p, lines);
+  p.separator();
+  _discountTotal(p, lines);
   p
-    ..separator()
     ..bold()
     ..row('TOTAL', '${total.toDecimalString()} DT')
     ..bold(false);
@@ -195,6 +216,7 @@ Uint8List cashReportDocument({
   required Money counted,
   required Money cardSales,
   required int tickets,
+  Money discounts = Money.zero,
   String? note,
 }) {
   final p = EscPos(width: width);
@@ -219,7 +241,8 @@ Uint8List cashReportDocument({
     ..bold(false)
     ..separator()
     ..row('Ventes carte (TPE)', cardSales.toDecimalString())
-    ..row('Tickets encaissés', '$tickets');
+    ..row('Tickets encaissés', '$tickets')
+    ..row('Remises & offerts', (-discounts).toDecimalString());
   if (note != null) p.text('Commentaire : $note');
   p.cut();
   return p.bytes();

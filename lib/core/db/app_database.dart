@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Bump when tables change, and add the upgrade step below.
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -71,6 +71,13 @@ class AppDatabase extends _$AppDatabase {
       if (from < 8 && from >= 2) {
         // v8: lines sent to the bar / kitchen printers
         await m.addColumn(orderLines, orderLines.sentAt);
+      }
+      if (from < 9 && from >= 2) {
+        // v9: discounts on lines
+        await m.addColumn(orderLines, orderLines.discountType);
+        await m.addColumn(orderLines, orderLines.discountValue);
+        await m.addColumn(orderLines, orderLines.discountReason);
+        await m.addColumn(orderLines, orderLines.discountApprovedBy);
       }
     },
   );

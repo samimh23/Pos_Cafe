@@ -12,5 +12,6 @@ abstract final class EventTypes {
   static const cashMoved = 'cash.moved';
   static const cashSessionClosed = 'cash_session.closed';
   static const orderSent = 'order.sent';
+  static const orderItemDiscounted = 'order.item_discounted';
   static const paymentAdded = 'payment.added';
 }

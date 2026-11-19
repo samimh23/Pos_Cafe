@@ -42,7 +42,23 @@ class StaffRepository {
   Stream<List<StaffRow>> watchStaff() =>
       (_db.select(_db.staffMembers)..orderBy([(t) => OrderingTerm.asc(t.name)])).watch();
 
-  Future<PinResult> login(StaffRow staff, String pin) async {
+  /// A manager approves a sensitive action (discount, cancellation, refund) with their
+  /// PIN, on the spot. Same lockout as the login; nobody is logged in or out.
+  Future<PinResult> approve(StaffRow manager, String pin) => _check(manager, pin, onSuccess: null);
+
+  Future<PinResult> login(StaffRow staff, String pin) => _check(
+    staff,
+    pin,
+    onSuccess:
+        (current) => _outbox.record(
+          type: 'staff.logged_in',
+          entityId: current.id,
+          staffId: current.id,
+          payload: {'name': current.name},
+        ),
+  );
+
+  Future<PinResult> _check(StaffRow staff, String pin, {required Future<void> Function(StaffRow)? onSuccess}) async {
     final key = 'pin_lock_${staff.id}';
     final state = _decode(await _db.getKv(key));
     final now = _now();
@@ -52,7 +68,7 @@ class StaffRepository {
     final current = await (_db.select(_db.staffMembers)..where((t) => t.id.equals(staff.id))).getSingleOrNull();
     if (current != null && isValidPin(pin) && await verifyPin(pin, current.pinHash)) {
       await _db.deleteKv(key);
-      await _outbox.record(type: 'staff.logged_in', entityId: current.id, staffId: current.id, payload: {'name': current.name});
+      await onSuccess?.call(current);
       return PinOk(current);
     }
 
@@ -60,7 +76,12 @@ class StaffRepository {
     if (failures >= maxTries) {
       final until = now.add(lockFor);
       await _db.setKv(key, jsonEncode({'failures': 0, 'lockedUntil': until.toIso8601String()}));
-      await _outbox.record(type: 'staff.pin_locked', entityId: staff.id, staffId: staff.id, payload: {'tries': failures});
+      await _outbox.record(
+        type: 'staff.pin_locked',
+        entityId: staff.id,
+        staffId: staff.id,
+        payload: {'tries': failures},
+      );
       return PinLocked(until);
     }
     await _db.setKv(key, jsonEncode({'failures': failures}));

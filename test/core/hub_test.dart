@@ -12,6 +12,7 @@ import 'package:pos_cafe/core/lan/lan_info.dart';
 import 'package:pos_cafe/core/money/money.dart';
 import 'package:pos_cafe/core/print/printers.dart';
 import 'package:pos_cafe/features/print/print_service.dart';
+import 'package:pos_cafe/features/order/data/discounts.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
@@ -343,6 +344,33 @@ void main() {
       );
     },
   );
+
+  test('a server offers a coffee on the tablet with a manager’s approval; the Hub checks it IS a manager', () async {
+    for (final db in [hubDb, tabletDb]) {
+      await db
+          .into(db.staffMembers)
+          .insertOnConflictUpdate(
+            StaffMembersCompanion.insert(id: 'staff-sonia', name: 'Sonia', role: 'manager', pinHash: 'x'),
+          );
+    }
+    final c = await connect(tablet, tabletDb);
+    await eventually(() async => c.link.connected);
+    final orders = HubOrderActions(c, staffId: () => 'staff-ahmed');
+    await orders.addProduct(await express(tabletDb), table: await table(tabletDb, 'table-2'));
+    final orderId = (await hubOrderAt('table-2'))!.id;
+
+    await expectLater(
+      orders.discount(orderId, const DiscountRequest.free(reason: 'geste', approvedBy: 'staff-ahmed')),
+      throwsA(isA<OrderException>().having((e) => e.message, 'm', 'Seul un gérant peut valider.')),
+    );
+    await orders.discount(orderId, const DiscountRequest.free(reason: 'geste', approvedBy: 'staff-sonia'));
+    final line = (await OrderRepository(hubDb, hubOutbox).watchLines(orderId).first).single;
+    expect((line.discountType, line.discountApprovedBy), ('free', 'staff-sonia'));
+    expect((await hubOutbox.pending()).last.approvedBy, 'staff-sonia');
+    await eventually(
+      () async => (await tabletDb.select(tabletDb.orderLines).getSingleOrNull())?.discountType == 'free',
+    );
+  });
 
   test('LAN signatures: right key and time pass; wrong key, changed body or old timestamp fail', () async {
     final now = DateTime.utc(2026, 11, 18, 10);

@@ -8,6 +8,7 @@ import '../../../core/money/order_totals.dart';
 import '../../../core/providers.dart';
 import '../../floor/view_model/floor_view_model.dart';
 import '../../staff_login/view_model/staff_session.dart';
+import '../data/discounts.dart';
 import '../data/order_repository.dart';
 
 final orderRepositoryProvider = Provider<OrderRepository>(
@@ -95,6 +96,16 @@ class OrderViewModel extends Notifier<bool> {
   Future<void> cancelOrder() async {
     final id = _orderId;
     if (id != null) await _repo.cancelOrder(id);
+  }
+
+  Future<void> discount(DiscountRequest request) async {
+    final id = _orderId;
+    if (id != null) await _repo.discount(id, request);
+  }
+
+  Future<void> removeDiscount(List<String> lineIds) async {
+    final id = _orderId;
+    if (id != null) await _repo.removeDiscount(id, lineIds);
   }
 
   /// "Demander l'addition": the cashier sees it on the Hub's tables screen.

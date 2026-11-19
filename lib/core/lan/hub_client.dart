@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../features/cash/data/cash_repository.dart';
+import '../../features/order/data/discounts.dart';
 import '../../features/order/data/order_repository.dart';
 import '../../features/print/print_service.dart';
 import '../db/app_database.dart';
@@ -252,6 +253,14 @@ class HubOrderActions implements OrderActions {
 
   @override
   Future<void> requestBill(String orderId) => _send('request_bill', {'orderId': orderId});
+
+  @override
+  Future<void> discount(String orderId, DiscountRequest request) =>
+      _send('discount', {'orderId': orderId, ...request.toJson()});
+
+  @override
+  Future<void> removeDiscount(String orderId, List<String> lineIds) =>
+      _send('remove_discount', {'orderId': orderId, 'lineIds': lineIds});
 
   @override
   Future<PaymentResult> pay(

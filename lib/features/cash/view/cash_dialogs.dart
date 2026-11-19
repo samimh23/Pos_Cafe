@@ -270,6 +270,7 @@ Future<void> showClosingReport(BuildContext context, CashClosing c, {Future<void
                 ),
                 const Divider(height: 24),
                 row('Ventes carte (TPE)', s.cardSales),
+                if (!s.discounts.isZero) row('Remises & offerts', -s.discounts),
                 if (c.note != null) ...[const SizedBox(height: 8), Text('Commentaire : ${c.note}')],
               ],
             ),

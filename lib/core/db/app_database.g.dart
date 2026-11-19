@@ -2532,6 +2532,51 @@ class $OrderLinesTable extends OrderLines
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _discountTypeMeta = const VerificationMeta(
+    'discountType',
+  );
+  @override
+  late final GeneratedColumn<String> discountType = GeneratedColumn<String>(
+    'discount_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _discountValueMeta = const VerificationMeta(
+    'discountValue',
+  );
+  @override
+  late final GeneratedColumn<int> discountValue = GeneratedColumn<int>(
+    'discount_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _discountReasonMeta = const VerificationMeta(
+    'discountReason',
+  );
+  @override
+  late final GeneratedColumn<String> discountReason = GeneratedColumn<String>(
+    'discount_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _discountApprovedByMeta =
+      const VerificationMeta('discountApprovedBy');
+  @override
+  late final GeneratedColumn<String> discountApprovedBy =
+      GeneratedColumn<String>(
+        'discount_approved_by',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2549,6 +2594,10 @@ class $OrderLinesTable extends OrderLines
     createdAt,
     paymentId,
     sentAt,
+    discountType,
+    discountValue,
+    discountReason,
+    discountApprovedBy,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2671,6 +2720,42 @@ class $OrderLinesTable extends OrderLines
         sentAt.isAcceptableOrUnknown(data['sent_at']!, _sentAtMeta),
       );
     }
+    if (data.containsKey('discount_type')) {
+      context.handle(
+        _discountTypeMeta,
+        discountType.isAcceptableOrUnknown(
+          data['discount_type']!,
+          _discountTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('discount_value')) {
+      context.handle(
+        _discountValueMeta,
+        discountValue.isAcceptableOrUnknown(
+          data['discount_value']!,
+          _discountValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('discount_reason')) {
+      context.handle(
+        _discountReasonMeta,
+        discountReason.isAcceptableOrUnknown(
+          data['discount_reason']!,
+          _discountReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('discount_approved_by')) {
+      context.handle(
+        _discountApprovedByMeta,
+        discountApprovedBy.isAcceptableOrUnknown(
+          data['discount_approved_by']!,
+          _discountApprovedByMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2752,6 +2837,23 @@ class $OrderLinesTable extends OrderLines
         DriftSqlType.dateTime,
         data['${effectivePrefix}sent_at'],
       ),
+      discountType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}discount_type'],
+      ),
+      discountValue:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}discount_value'],
+          )!,
+      discountReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}discount_reason'],
+      ),
+      discountApprovedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}discount_approved_by'],
+      ),
     );
   }
 
@@ -2787,6 +2889,18 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
 
   /// When the line was sent to the bar / kitchen printer (v8). Null = not sent yet.
   final DateTime? sentAt;
+
+  /// Discount (v9): free | percent | amount; null = none. See money/order_totals discountOf.
+  final String? discountType;
+
+  /// Basis points for percent (1000 = 10 %), millimes for amount.
+  final int discountValue;
+
+  /// geste | staff | error | complaint | other
+  final String? discountReason;
+
+  /// Manager who approved the discount.
+  final String? discountApprovedBy;
   const OrderLineRow({
     required this.id,
     required this.orderId,
@@ -2803,6 +2917,10 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     required this.createdAt,
     this.paymentId,
     this.sentAt,
+    this.discountType,
+    required this.discountValue,
+    this.discountReason,
+    this.discountApprovedBy,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2828,6 +2946,16 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     if (!nullToAbsent || sentAt != null) {
       map['sent_at'] = Variable<DateTime>(sentAt);
     }
+    if (!nullToAbsent || discountType != null) {
+      map['discount_type'] = Variable<String>(discountType);
+    }
+    map['discount_value'] = Variable<int>(discountValue);
+    if (!nullToAbsent || discountReason != null) {
+      map['discount_reason'] = Variable<String>(discountReason);
+    }
+    if (!nullToAbsent || discountApprovedBy != null) {
+      map['discount_approved_by'] = Variable<String>(discountApprovedBy);
+    }
     return map;
   }
 
@@ -2852,6 +2980,19 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
               : Value(paymentId),
       sentAt:
           sentAt == null && nullToAbsent ? const Value.absent() : Value(sentAt),
+      discountType:
+          discountType == null && nullToAbsent
+              ? const Value.absent()
+              : Value(discountType),
+      discountValue: Value(discountValue),
+      discountReason:
+          discountReason == null && nullToAbsent
+              ? const Value.absent()
+              : Value(discountReason),
+      discountApprovedBy:
+          discountApprovedBy == null && nullToAbsent
+              ? const Value.absent()
+              : Value(discountApprovedBy),
     );
   }
 
@@ -2876,6 +3017,12 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       paymentId: serializer.fromJson<String?>(json['paymentId']),
       sentAt: serializer.fromJson<DateTime?>(json['sentAt']),
+      discountType: serializer.fromJson<String?>(json['discountType']),
+      discountValue: serializer.fromJson<int>(json['discountValue']),
+      discountReason: serializer.fromJson<String?>(json['discountReason']),
+      discountApprovedBy: serializer.fromJson<String?>(
+        json['discountApprovedBy'],
+      ),
     );
   }
   @override
@@ -2897,6 +3044,10 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'paymentId': serializer.toJson<String?>(paymentId),
       'sentAt': serializer.toJson<DateTime?>(sentAt),
+      'discountType': serializer.toJson<String?>(discountType),
+      'discountValue': serializer.toJson<int>(discountValue),
+      'discountReason': serializer.toJson<String?>(discountReason),
+      'discountApprovedBy': serializer.toJson<String?>(discountApprovedBy),
     };
   }
 
@@ -2916,6 +3067,10 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     DateTime? createdAt,
     Value<String?> paymentId = const Value.absent(),
     Value<DateTime?> sentAt = const Value.absent(),
+    Value<String?> discountType = const Value.absent(),
+    int? discountValue,
+    Value<String?> discountReason = const Value.absent(),
+    Value<String?> discountApprovedBy = const Value.absent(),
   }) => OrderLineRow(
     id: id ?? this.id,
     orderId: orderId ?? this.orderId,
@@ -2932,6 +3087,14 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     createdAt: createdAt ?? this.createdAt,
     paymentId: paymentId.present ? paymentId.value : this.paymentId,
     sentAt: sentAt.present ? sentAt.value : this.sentAt,
+    discountType: discountType.present ? discountType.value : this.discountType,
+    discountValue: discountValue ?? this.discountValue,
+    discountReason:
+        discountReason.present ? discountReason.value : this.discountReason,
+    discountApprovedBy:
+        discountApprovedBy.present
+            ? discountApprovedBy.value
+            : this.discountApprovedBy,
   );
   OrderLineRow copyWithCompanion(OrderLinesCompanion data) {
     return OrderLineRow(
@@ -2956,6 +3119,22 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       paymentId: data.paymentId.present ? data.paymentId.value : this.paymentId,
       sentAt: data.sentAt.present ? data.sentAt.value : this.sentAt,
+      discountType:
+          data.discountType.present
+              ? data.discountType.value
+              : this.discountType,
+      discountValue:
+          data.discountValue.present
+              ? data.discountValue.value
+              : this.discountValue,
+      discountReason:
+          data.discountReason.present
+              ? data.discountReason.value
+              : this.discountReason,
+      discountApprovedBy:
+          data.discountApprovedBy.present
+              ? data.discountApprovedBy.value
+              : this.discountApprovedBy,
     );
   }
 
@@ -2976,7 +3155,11 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
           ..write('voided: $voided, ')
           ..write('createdAt: $createdAt, ')
           ..write('paymentId: $paymentId, ')
-          ..write('sentAt: $sentAt')
+          ..write('sentAt: $sentAt, ')
+          ..write('discountType: $discountType, ')
+          ..write('discountValue: $discountValue, ')
+          ..write('discountReason: $discountReason, ')
+          ..write('discountApprovedBy: $discountApprovedBy')
           ..write(')'))
         .toString();
   }
@@ -2998,6 +3181,10 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     createdAt,
     paymentId,
     sentAt,
+    discountType,
+    discountValue,
+    discountReason,
+    discountApprovedBy,
   );
   @override
   bool operator ==(Object other) =>
@@ -3017,7 +3204,11 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
           other.voided == this.voided &&
           other.createdAt == this.createdAt &&
           other.paymentId == this.paymentId &&
-          other.sentAt == this.sentAt);
+          other.sentAt == this.sentAt &&
+          other.discountType == this.discountType &&
+          other.discountValue == this.discountValue &&
+          other.discountReason == this.discountReason &&
+          other.discountApprovedBy == this.discountApprovedBy);
 }
 
 class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
@@ -3036,6 +3227,10 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
   final Value<DateTime> createdAt;
   final Value<String?> paymentId;
   final Value<DateTime?> sentAt;
+  final Value<String?> discountType;
+  final Value<int> discountValue;
+  final Value<String?> discountReason;
+  final Value<String?> discountApprovedBy;
   final Value<int> rowid;
   const OrderLinesCompanion({
     this.id = const Value.absent(),
@@ -3053,6 +3248,10 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     this.createdAt = const Value.absent(),
     this.paymentId = const Value.absent(),
     this.sentAt = const Value.absent(),
+    this.discountType = const Value.absent(),
+    this.discountValue = const Value.absent(),
+    this.discountReason = const Value.absent(),
+    this.discountApprovedBy = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OrderLinesCompanion.insert({
@@ -3071,6 +3270,10 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     required DateTime createdAt,
     this.paymentId = const Value.absent(),
     this.sentAt = const Value.absent(),
+    this.discountType = const Value.absent(),
+    this.discountValue = const Value.absent(),
+    this.discountReason = const Value.absent(),
+    this.discountApprovedBy = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        orderId = Value(orderId),
@@ -3096,6 +3299,10 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     Expression<DateTime>? createdAt,
     Expression<String>? paymentId,
     Expression<DateTime>? sentAt,
+    Expression<String>? discountType,
+    Expression<int>? discountValue,
+    Expression<String>? discountReason,
+    Expression<String>? discountApprovedBy,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3114,6 +3321,11 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
       if (createdAt != null) 'created_at': createdAt,
       if (paymentId != null) 'payment_id': paymentId,
       if (sentAt != null) 'sent_at': sentAt,
+      if (discountType != null) 'discount_type': discountType,
+      if (discountValue != null) 'discount_value': discountValue,
+      if (discountReason != null) 'discount_reason': discountReason,
+      if (discountApprovedBy != null)
+        'discount_approved_by': discountApprovedBy,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3134,6 +3346,10 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     Value<DateTime>? createdAt,
     Value<String?>? paymentId,
     Value<DateTime?>? sentAt,
+    Value<String?>? discountType,
+    Value<int>? discountValue,
+    Value<String?>? discountReason,
+    Value<String?>? discountApprovedBy,
     Value<int>? rowid,
   }) {
     return OrderLinesCompanion(
@@ -3152,6 +3368,10 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
       createdAt: createdAt ?? this.createdAt,
       paymentId: paymentId ?? this.paymentId,
       sentAt: sentAt ?? this.sentAt,
+      discountType: discountType ?? this.discountType,
+      discountValue: discountValue ?? this.discountValue,
+      discountReason: discountReason ?? this.discountReason,
+      discountApprovedBy: discountApprovedBy ?? this.discountApprovedBy,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3204,6 +3424,18 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     if (sentAt.present) {
       map['sent_at'] = Variable<DateTime>(sentAt.value);
     }
+    if (discountType.present) {
+      map['discount_type'] = Variable<String>(discountType.value);
+    }
+    if (discountValue.present) {
+      map['discount_value'] = Variable<int>(discountValue.value);
+    }
+    if (discountReason.present) {
+      map['discount_reason'] = Variable<String>(discountReason.value);
+    }
+    if (discountApprovedBy.present) {
+      map['discount_approved_by'] = Variable<String>(discountApprovedBy.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3228,6 +3460,10 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
           ..write('createdAt: $createdAt, ')
           ..write('paymentId: $paymentId, ')
           ..write('sentAt: $sentAt, ')
+          ..write('discountType: $discountType, ')
+          ..write('discountValue: $discountValue, ')
+          ..write('discountReason: $discountReason, ')
+          ..write('discountApprovedBy: $discountApprovedBy, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7102,6 +7338,10 @@ typedef $$OrderLinesTableCreateCompanionBuilder =
       required DateTime createdAt,
       Value<String?> paymentId,
       Value<DateTime?> sentAt,
+      Value<String?> discountType,
+      Value<int> discountValue,
+      Value<String?> discountReason,
+      Value<String?> discountApprovedBy,
       Value<int> rowid,
     });
 typedef $$OrderLinesTableUpdateCompanionBuilder =
@@ -7121,6 +7361,10 @@ typedef $$OrderLinesTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String?> paymentId,
       Value<DateTime?> sentAt,
+      Value<String?> discountType,
+      Value<int> discountValue,
+      Value<String?> discountReason,
+      Value<String?> discountApprovedBy,
       Value<int> rowid,
     });
 
@@ -7205,6 +7449,26 @@ class $$OrderLinesTableFilterComposer
 
   ColumnFilters<DateTime> get sentAt => $composableBuilder(
     column: $table.sentAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get discountType => $composableBuilder(
+    column: $table.discountType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get discountValue => $composableBuilder(
+    column: $table.discountValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get discountReason => $composableBuilder(
+    column: $table.discountReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get discountApprovedBy => $composableBuilder(
+    column: $table.discountApprovedBy,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7292,6 +7556,26 @@ class $$OrderLinesTableOrderingComposer
     column: $table.sentAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get discountType => $composableBuilder(
+    column: $table.discountType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get discountValue => $composableBuilder(
+    column: $table.discountValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get discountReason => $composableBuilder(
+    column: $table.discountReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get discountApprovedBy => $composableBuilder(
+    column: $table.discountApprovedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OrderLinesTableAnnotationComposer
@@ -7351,6 +7635,26 @@ class $$OrderLinesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get sentAt =>
       $composableBuilder(column: $table.sentAt, builder: (column) => column);
+
+  GeneratedColumn<String> get discountType => $composableBuilder(
+    column: $table.discountType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get discountValue => $composableBuilder(
+    column: $table.discountValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get discountReason => $composableBuilder(
+    column: $table.discountReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get discountApprovedBy => $composableBuilder(
+    column: $table.discountApprovedBy,
+    builder: (column) => column,
+  );
 }
 
 class $$OrderLinesTableTableManager
@@ -7399,6 +7703,10 @@ class $$OrderLinesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> paymentId = const Value.absent(),
                 Value<DateTime?> sentAt = const Value.absent(),
+                Value<String?> discountType = const Value.absent(),
+                Value<int> discountValue = const Value.absent(),
+                Value<String?> discountReason = const Value.absent(),
+                Value<String?> discountApprovedBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderLinesCompanion(
                 id: id,
@@ -7416,6 +7724,10 @@ class $$OrderLinesTableTableManager
                 createdAt: createdAt,
                 paymentId: paymentId,
                 sentAt: sentAt,
+                discountType: discountType,
+                discountValue: discountValue,
+                discountReason: discountReason,
+                discountApprovedBy: discountApprovedBy,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7435,6 +7747,10 @@ class $$OrderLinesTableTableManager
                 required DateTime createdAt,
                 Value<String?> paymentId = const Value.absent(),
                 Value<DateTime?> sentAt = const Value.absent(),
+                Value<String?> discountType = const Value.absent(),
+                Value<int> discountValue = const Value.absent(),
+                Value<String?> discountReason = const Value.absent(),
+                Value<String?> discountApprovedBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderLinesCompanion.insert(
                 id: id,
@@ -7452,6 +7768,10 @@ class $$OrderLinesTableTableManager
                 createdAt: createdAt,
                 paymentId: paymentId,
                 sentAt: sentAt,
+                discountType: discountType,
+                discountValue: discountValue,
+                discountReason: discountReason,
+                discountApprovedBy: discountApprovedBy,
                 rowid: rowid,
               ),
           withReferenceMapper:

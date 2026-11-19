@@ -5,7 +5,8 @@ import '../../../core/ids.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/outbox_repository.dart';
 import '../../../core/sync/sync_event_types.dart';
-import '../../order/data/order_repository.dart' show OrderException;
+import '../../../core/money/order_totals.dart';
+import '../../order/data/order_repository.dart' show OrderException, amountsOf;
 
 /// A cash movement as shown on screen and on the closing report.
 class CashMovementView {
@@ -51,6 +52,9 @@ class CashSummary {
   final Money cashOut;
   final int ticketCount;
 
+  /// Discounts and free items on the tickets paid into this drawer.
+  final Money discounts;
+
   /// Tickets still open in the café (the main POS can't close while some are).
   final int openTickets;
   final List<CashMovementView> movements;
@@ -65,6 +69,7 @@ class CashSummary {
     required this.cashIn,
     required this.cashOut,
     required this.ticketCount,
+    this.discounts = Money.zero,
     required this.openTickets,
     required this.movements,
   });
@@ -82,6 +87,7 @@ class CashSummary {
     'cashIn': cashIn.millimes,
     'cashOut': cashOut.millimes,
     'ticketCount': ticketCount,
+    'discounts': discounts.millimes,
     'openTickets': openTickets,
     'movements': [for (final m in movements) m.toJson()],
   };
@@ -96,6 +102,7 @@ class CashSummary {
     cashIn: Money(j['cashIn'] as int),
     cashOut: Money(j['cashOut'] as int),
     ticketCount: j['ticketCount'] as int,
+    discounts: Money((j['discounts'] as int?) ?? 0),
     openTickets: j['openTickets'] as int,
     movements: [
       for (final m in (j['movements'] as List? ?? const []))
@@ -341,6 +348,23 @@ class CashRepository implements CashActions {
               ..orderBy([(m) => OrderingTerm.asc(m.createdAt)]))
             .get();
     final names = {for (final s in await _db.select(_db.staffMembers).get()) s.id: s.name};
+    // Discounts on the tickets paid into this drawer during the session.
+    final paidHere =
+        await _db
+            .customSelect(
+              'SELECT DISTINCT order_id FROM payments WHERE drawer_id = ?1 AND created_at >= ?2',
+              variables: [Variable.withString(drawerId), Variable.withDateTime(session.openedAt)],
+              readsFrom: {_db.payments},
+            )
+            .map((r) => r.read<String>('order_id'))
+            .get();
+    final discountLines =
+        paidHere.isEmpty
+            ? <OrderLineRow>[]
+            : await (_db.select(_db.orderLines)
+                  ..where((l) => l.orderId.isIn(paidHere) & l.voided.equals(false) & l.discountType.isNotNull()))
+                .get();
+    final discounts = discountLines.fold(Money.zero, (sum, l) => sum + lineDiscount(amountsOf(l)));
     Money sum(String type) => moves.where((m) => m.type == type).fold(Money.zero, (acc, m) => acc + Money(m.amount));
     return CashSummary(
       sessionId: session.id,
@@ -352,6 +376,7 @@ class CashRepository implements CashActions {
       cashIn: sum('in'),
       cashOut: sum('out'),
       ticketCount: totals.read<int>('tickets'),
+      discounts: discounts,
       openTickets: totals.read<int>('open_tickets'),
       movements: [
         for (final m in moves)

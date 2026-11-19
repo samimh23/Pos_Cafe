@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 
 import '../../features/cash/data/cash_repository.dart';
+import '../../features/order/data/discounts.dart';
 import '../../features/order/data/order_repository.dart';
 import '../../features/print/print_service.dart';
 import '../print/printers.dart';
@@ -238,6 +239,11 @@ class HubServer {
           await repo.cancelOrder(c['orderId'] as String);
         case 'move':
           await repo.moveOrder(c['orderId'] as String, await _table(c['tableId'] as String?));
+        case 'discount':
+          // The manager's PIN was checked on the tablet; the Hub checks they ARE a manager.
+          await repo.discount(c['orderId'] as String, DiscountRequest.fromJson(c));
+        case 'remove_discount':
+          await repo.removeDiscount(c['orderId'] as String, ((c['lineIds'] as List?) ?? const []).cast<String>());
         case 'request_bill':
           await repo.requestBill(c['orderId'] as String);
           // The cashier gets "l'addition" printed at the counter right away (if a printer is set).

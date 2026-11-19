@@ -10,6 +10,7 @@ import 'package:pos_cafe/core/print/printers.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
 import 'package:pos_cafe/features/cash/data/cash_repository.dart';
+import 'package:pos_cafe/features/order/data/discounts.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
 import 'package:pos_cafe/features/print/print_service.dart';
 
@@ -174,6 +175,26 @@ void main() {
       expect(t, contains(s), reason: s);
     }
     expect(printer.tickets.single.every((l) => l.length <= 48), isTrue);
+  });
+
+  test('discounts are printed under their item, with the total of discounts', () async {
+    await print.saveSettings(const PrinterSettings(receipt: counter));
+    await db
+        .into(db.staffMembers)
+        .insertOnConflictUpdate(
+          StaffMembersCompanion.insert(id: 's-boss', name: 'Sonia', role: 'manager', pinHash: 'x'),
+        );
+    final id = await order([express, express, crepe]); // 2.400 + 5.500
+    final line = (await orders.watchLines(id).first).firstWhere((l) => l.name == 'Express');
+    await orders.discount(id, DiscountRequest.free(reason: 'geste', lineIds: [line.id], approvedBy: 's-boss'));
+    await orders.pay(id, const PaymentRequest.card(amount: Money(5500)), deviceCode: 'T1', drawerId: testDrawer);
+    await print.printReceipt(id);
+    final t = printer.texts.single;
+    expect(t, contains('2 x Express'));
+    expect(t, contains('Offert (Geste commercial)'));
+    expect(t, contains('-2.400'));
+    expect(t, contains('Remises & offerts'));
+    expect(t, contains('TOTAL 5.500 DT'));
   });
 
   test('l’addition: what is left after a partial payment; not a receipt', () async {

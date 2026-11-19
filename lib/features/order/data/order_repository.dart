@@ -9,6 +9,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/order_totals.dart';
 import '../../../core/sync/outbox_repository.dart';
 import '../../../core/sync/sync_event_types.dart';
+import 'discounts.dart';
 
 /// What the cashier asks for when paying (all or part of a ticket).
 class PaymentRequest {
@@ -89,6 +90,12 @@ abstract interface class OrderActions {
   /// [drawerId]: the cash drawer (device id) the money goes into — it must be open.
   Future<PaymentResult> pay(String orderId, PaymentRequest req, {required String deviceCode, required String drawerId});
   Future<void> requestBill(String orderId);
+
+  /// Offert / % / amount on some lines or the whole ticket (reason + manager required).
+  Future<void> discount(String orderId, DiscountRequest request);
+
+  /// Back to the full price (no approval needed).
+  Future<void> removeDiscount(String orderId, List<String> lineIds);
 }
 
 LineAmounts amountsOf(OrderLineRow l) => (
@@ -97,6 +104,8 @@ LineAmounts amountsOf(OrderLineRow l) => (
   qty: l.qty,
   vatRateBp: l.vatRateBp,
   voided: l.voided,
+  discountType: l.discountType,
+  discountValue: l.discountValue,
 );
 
 /// Model layer for orders. Every method changes the local data AND records the
@@ -182,7 +191,9 @@ class OrderRepository implements OrderActions {
                       l.voided.equals(false) &
                       l.paymentId.isNull() &
                       // Already sent to the bar/kitchen: a new round is a NEW line, so it gets sent too.
-                      l.sentAt.isNull(),
+                      l.sentAt.isNull() &
+                      // An offered coffee must not make the next coffee free too.
+                      l.discountType.isNull(),
                 )
                 ..limit(1))
               .getSingleOrNull();
@@ -228,8 +239,9 @@ class OrderRepository implements OrderActions {
     final line = await _changeableLine(lineId);
     if (qty <= 0) {
       await _void(line, line.sentAt == null ? 'removed_before_send' : 'removed_after_send');
-    } else if (line.sentAt != null && qty > line.qty) {
-      // Already sent to the bar/kitchen: the extra goes on a NEW line, so "Envoyer" sends it.
+    } else if ((line.sentAt != null || line.discountType != null) && qty > line.qty) {
+      // Already sent to the bar/kitchen, or discounted: the extra goes on a NEW line at full
+      // price, so "Envoyer" sends it and the discount doesn't silently grow.
       await _addLineLike(line, qty - line.qty);
     } else {
       await _setQty(line, qty);
@@ -317,6 +329,122 @@ class OrderRepository implements OrderActions {
       payload: {'tableId': to?.id, 'tableName': to?.name},
     );
   });
+
+  // ── Discounts ─────────────────────────────────────────────
+
+  /// Applies a discount. Every discount has a reason and a manager: the one who
+  /// typed their PIN ([DiscountRequest.approvedBy]), or the person logged in if
+  /// they are a manager. Paid lines are not touched.
+  @override
+  Future<void> discount(String orderId, DiscountRequest r) => _db.transaction(() async {
+    await _openOrder(orderId);
+    if (!DiscountReasons.labels.containsKey(r.reason)) throw const OrderException('Choisissez le motif de la remise.');
+    final approver = await _manager(r.approvedBy);
+    if (r.type == DiscountType.percent && (r.value < 1 || r.value > 10000)) {
+      throw const OrderException('Pourcentage invalide (entre 0,01 et 100 %).');
+    }
+    if (r.type == DiscountType.amount && r.value < 1) throw const OrderException('Montant de remise invalide.');
+    if (r.type != DiscountType.free && r.type != DiscountType.percent && r.type != DiscountType.amount) {
+      throw const OrderException('Type de remise invalide.');
+    }
+
+    var lines =
+        await (_db.select(_db.orderLines)
+          ..where((l) => l.orderId.equals(orderId) & l.voided.equals(false) & l.paymentId.isNull())).get();
+    if (r.lineIds.isNotEmpty) {
+      lines = lines.where((l) => r.lineIds.contains(l.id)).toList();
+      if (lines.length != r.lineIds.toSet().length) {
+        throw const OrderException('Article introuvable, retiré ou déjà payé.');
+      }
+    }
+    if (lines.isEmpty) throw const OrderException('Aucun article à remiser.');
+
+    // An amount on several lines is split in proportion to their price.
+    final values =
+        r.type == DiscountType.amount && lines.length > 1
+            ? splitAmount(r.value, {for (final l in lines) l.id: lineGross(amountsOf(l)).millimes})
+            : {for (final l in lines) l.id: r.value};
+
+    final before = OrderTotals.of(lines.map(amountsOf)).total;
+    final after = OrderTotals.of([for (final l in lines) _withDiscount(l, r.type, values[l.id]!)]).total;
+    await _checkStillCoversPaid(orderId, after - before);
+
+    for (final l in lines) {
+      await (_db.update(_db.orderLines)..where((x) => x.id.equals(l.id))).write(
+        OrderLinesCompanion(
+          discountType: Value(r.type),
+          discountValue: Value(values[l.id]!),
+          discountReason: Value(r.reason),
+          discountApprovedBy: Value(approver),
+        ),
+      );
+    }
+    await _outbox.record(
+      staffId: _staffId(),
+      approvedBy: approver,
+      type: EventTypes.orderItemDiscounted,
+      entityId: orderId,
+      payload: {
+        'reason': r.reason,
+        'lines': [
+          for (final l in lines) {'lineId': l.id, 'type': r.type, 'value': values[l.id]},
+        ],
+      },
+    );
+  });
+
+  @override
+  Future<void> removeDiscount(String orderId, List<String> lineIds) => _db.transaction(() async {
+    await _openOrder(orderId);
+    final lines =
+        await (_db.select(_db.orderLines)
+          ..where((l) => l.orderId.equals(orderId) & l.id.isIn(lineIds) & l.discountType.isNotNull())).get();
+    if (lines.isEmpty) return;
+    if (lines.any((l) => l.paymentId != null)) throw const OrderException('Cet article est déjà payé.');
+    await (_db.update(_db.orderLines)..where((l) => l.id.isIn([for (final l in lines) l.id]))).write(
+      const OrderLinesCompanion(
+        discountType: Value(null),
+        discountValue: Value(0),
+        discountReason: Value(null),
+        discountApprovedBy: Value(null),
+      ),
+    );
+    await _outbox.record(
+      staffId: _staffId(),
+      type: EventTypes.orderItemDiscounted,
+      entityId: orderId,
+      payload: {
+        'reason': null,
+        'lines': [
+          for (final l in lines) {'lineId': l.id, 'type': null, 'value': 0},
+        ],
+      },
+    );
+  });
+
+  LineAmounts _withDiscount(OrderLineRow l, String type, int value) => (
+    unitPrice: l.unitPrice,
+    modifiersPrice: l.modifiersPrice,
+    qty: l.qty,
+    vatRateBp: l.vatRateBp,
+    voided: l.voided,
+    discountType: type,
+    discountValue: value,
+  );
+
+  /// The manager approving a sensitive action: [approvedBy] (must be a manager),
+  /// or the person logged in if they are a manager.
+  Future<String> _manager(String? approvedBy) async {
+    Future<StaffRow?> staff(String? id) async =>
+        id == null ? null : (_db.select(_db.staffMembers)..where((s) => s.id.equals(id))).getSingleOrNull();
+    if (approvedBy != null) {
+      if ((await staff(approvedBy))?.role != 'manager') throw const OrderException('Seul un gérant peut valider.');
+      return approvedBy;
+    }
+    final me = await staff(_staffId());
+    if (me?.role == 'manager') return me!.id;
+    throw const OrderException('Validation d’un gérant requise.');
+  }
 
   /// "Demander l'addition": marks the ticket so the cashier sees it on the Hub.
   @override
