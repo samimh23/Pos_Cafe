@@ -82,9 +82,13 @@ class OrderException implements Exception {
 /// the local [OrderRepository]; on a server tablet the actions go to the Hub.
 abstract interface class OrderActions {
   Future<void> addProduct(ProductRow p, {DiningTableRow? table, List<ModifierOption> modifiers});
-  Future<void> setQty(String lineId, int qty);
-  Future<void> removeLine(String lineId);
-  Future<void> cancelOrder(String orderId);
+
+  /// Less of an item already sent to the bar/kitchen needs [approval] (manager + reason).
+  Future<void> setQty(String lineId, int qty, {Approval? approval});
+  Future<void> removeLine(String lineId, {Approval? approval});
+
+  /// A ticket with items already sent needs [approval].
+  Future<void> cancelOrder(String orderId, {Approval? approval});
   Future<void> moveOrder(String orderId, DiningTableRow? to);
 
   /// [drawerId]: the cash drawer (device id) the money goes into — it must be open.
@@ -235,10 +239,19 @@ class OrderRepository implements OrderActions {
   }
 
   @override
-  Future<void> setQty(String lineId, int qty) => _db.transaction(() async {
+  Future<void> setQty(String lineId, int qty, {Approval? approval}) => _db.transaction(() async {
     final line = await _changeableLine(lineId);
+    // Already being prepared at the bar/kitchen: taking it back needs a manager and a reason.
+    final approver = line.sentAt != null && qty < line.qty ? await _approve(approval) : null;
     if (qty <= 0) {
-      await _void(line, line.sentAt == null ? 'removed_before_send' : 'removed_after_send');
+      await _void(
+        line,
+        line.sentAt == null ? 'removed_before_send' : 'removed_after_send',
+        approvedBy: approver,
+        why: approver == null ? null : approval!.reason,
+      );
+    } else if (approver != null) {
+      await _setQty(line, qty, approvedBy: approver, why: approval!.reason);
     } else if ((line.sentAt != null || line.discountType != null) && qty > line.qty) {
       // Already sent to the bar/kitchen, or discounted: the extra goes on a NEW line at full
       // price, so "Envoyer" sends it and the discount doesn't silently grow.
@@ -286,24 +299,28 @@ class OrderRepository implements OrderActions {
   }
 
   @override
-  Future<void> removeLine(String lineId) =>
-      _db.transaction(() async => _void(await _changeableLine(lineId), 'removed_before_send'));
+  Future<void> removeLine(String lineId, {Approval? approval}) => setQty(lineId, 0, approval: approval);
 
   /// Cancels a whole open order (only before anything was paid).
   @override
-  Future<void> cancelOrder(String orderId) => _db.transaction(() async {
+  Future<void> cancelOrder(String orderId, {Approval? approval}) => _db.transaction(() async {
     final order = await _openOrder(orderId);
     if (!(await _paid(orderId)).isZero) {
       throw const OrderException('Une partie est déjà payée : ce ticket ne peut plus être annulé.');
     }
+    final sent =
+        await (_db.select(_db.orderLines)
+          ..where((l) => l.orderId.equals(orderId) & l.voided.equals(false) & l.sentAt.isNotNull())).get();
+    final approver = sent.isEmpty ? null : await _approve(approval);
     await (_db.update(_db.orders)..where(
       (o) => o.id.equals(order.id),
     )).write(OrdersCompanion(status: const Value('cancelled'), closedAt: Value(_now())));
     await _outbox.record(
       staffId: _staffId(),
+      approvedBy: approver,
       type: EventTypes.orderCancelled,
       entityId: order.id,
-      payload: {'reason': 'cancelled_by_staff'},
+      payload: {'reason': approver == null ? 'cancelled_by_staff' : approval!.reason},
     );
   });
 
@@ -642,27 +659,36 @@ class OrderRepository implements OrderActions {
     }
   }
 
-  Future<void> _setQty(OrderLineRow line, int qty) async {
+  /// Manager + reason for taking back something already sent / paid.
+  Future<String> _approve(Approval? a) async {
+    if (a == null) throw const OrderException('Déjà envoyé en préparation : validation d’un gérant requise.');
+    if (!CancelReasons.labels.containsKey(a.reason)) throw const OrderException('Choisissez le motif.');
+    return _manager(a.approvedBy);
+  }
+
+  Future<void> _setQty(OrderLineRow line, int qty, {String? approvedBy, String? why}) async {
     final unit = Money(line.unitPrice + line.modifiersPrice);
     if (qty < line.qty) await _checkStillCoversPaid(line.orderId, unit * (qty - line.qty));
     await (_db.update(_db.orderLines)..where((l) => l.id.equals(line.id))).write(OrderLinesCompanion(qty: Value(qty)));
     await _outbox.record(
       staffId: _staffId(),
+      approvedBy: approvedBy,
       type: EventTypes.orderItemUpdated,
       entityId: line.orderId,
-      payload: {'lineId': line.id, 'qty': qty},
+      payload: {'lineId': line.id, 'qty': qty, if (why != null) 'why': why},
     );
   }
 
-  Future<void> _void(OrderLineRow line, String reason) async {
+  Future<void> _void(OrderLineRow line, String reason, {String? approvedBy, String? why}) async {
     await _checkStillCoversPaid(line.orderId, -lineTotal(amountsOf(line)));
     await (_db.update(_db.orderLines)
       ..where((l) => l.id.equals(line.id))).write(const OrderLinesCompanion(voided: Value(true)));
     await _outbox.record(
       staffId: _staffId(),
+      approvedBy: approvedBy,
       type: EventTypes.orderItemVoided,
       entityId: line.orderId,
-      payload: {'lineId': line.id, 'reason': reason},
+      payload: {'lineId': line.id, 'reason': reason, if (why != null) 'why': why},
     );
   }
 }

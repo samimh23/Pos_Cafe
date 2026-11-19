@@ -84,3 +84,28 @@ Map<String, int> splitAmount(int amount, Map<String, int> grossById) {
   }
   return shares;
 }
+
+/// Why something already sent to the bar/kitchen is cancelled (or a paid ticket refunded).
+abstract final class CancelReasons {
+  static const labels = {
+    'changed_mind': 'Le client a changé d’avis',
+    'error': 'Erreur de saisie',
+    'quality': 'Problème de qualité',
+    'other': 'Autre',
+  };
+  static String label(String? code) => labels[code] ?? (code ?? '');
+}
+
+/// A manager's OK for a sensitive action, with its reason.
+class Approval {
+  /// Manager who typed their PIN; null when the person logged in is a manager.
+  final String? approvedBy;
+  final String reason;
+  const Approval({this.approvedBy, required this.reason});
+
+  Map<String, Object?> toJson() => {'approvedBy': approvedBy, 'reason': reason};
+  static Approval? fromJson(Object? j) {
+    if (j is! Map) return null;
+    return Approval(approvedBy: j['approvedBy'] as String?, reason: j['reason'] as String);
+  }
+}

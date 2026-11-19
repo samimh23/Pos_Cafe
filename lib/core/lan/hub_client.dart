@@ -240,13 +240,16 @@ class HubOrderActions implements OrderActions {
       });
 
   @override
-  Future<void> setQty(String lineId, int qty) => _send('set_qty', {'lineId': lineId, 'qty': qty});
+  Future<void> setQty(String lineId, int qty, {Approval? approval}) =>
+      _send('set_qty', {'lineId': lineId, 'qty': qty, 'approval': approval?.toJson()});
 
   @override
-  Future<void> removeLine(String lineId) => _send('remove_line', {'lineId': lineId});
+  Future<void> removeLine(String lineId, {Approval? approval}) =>
+      _send('remove_line', {'lineId': lineId, 'approval': approval?.toJson()});
 
   @override
-  Future<void> cancelOrder(String orderId) => _send('cancel', {'orderId': orderId});
+  Future<void> cancelOrder(String orderId, {Approval? approval}) =>
+      _send('cancel', {'orderId': orderId, 'approval': approval?.toJson()});
 
   @override
   Future<void> moveOrder(String orderId, DiningTableRow? to) => _send('move', {'orderId': orderId, 'tableId': to?.id});
@@ -330,6 +333,16 @@ class HubPrintActions implements PrintActions {
 
   @override
   Future<void> printBill(String orderId) => _client.command('print_bill', {'orderId': orderId}, staffId: _staffId());
+
+  @override
+  Future<void> printCancellation(String orderId, {required List<(String, int)> items, required String reason}) =>
+      _client.command('print_cancel', {
+        'orderId': orderId,
+        'items': [
+          for (final (lineId, qty) in items) {'lineId': lineId, 'qty': qty},
+        ],
+        'reason': reason,
+      }, staffId: _staffId());
 
   @override
   Future<void> printReceipt(String orderId) =>

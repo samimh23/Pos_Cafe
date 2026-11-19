@@ -98,7 +98,7 @@ class TicketPanel extends ConsumerWidget {
                   key: const Key('cancel-order'),
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('Annuler'),
-                  onPressed: () => _confirmCancel(context, vm),
+                  onPressed: () => _confirmCancel(context, ref, vm, ticket),
                 ),
             ],
           ),
@@ -148,7 +148,11 @@ class TicketPanel extends ConsumerWidget {
                               IconButton(
                                 tooltip: 'Moins',
                                 icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () => _guard(context, () => vm.decrement(l)),
+                                onPressed:
+                                    () =>
+                                        l.sentAt == null
+                                            ? _guard(context, () => vm.decrement(l))
+                                            : _cancelSent(context, ref, vm, l),
                               ),
                               Text('${l.qty}', style: text.titleMedium),
                               IconButton(
@@ -356,12 +360,14 @@ class TicketPanel extends ConsumerWidget {
   }
 
   /// Shows refusals (e.g. "Cet article est déjà payé.") instead of failing silently.
-  Future<void> _guard(BuildContext context, Future<void> Function() action) async {
+  Future<bool> _guard(BuildContext context, Future<void> Function() action) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await action();
+      return true;
     } on OrderException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return false;
     }
   }
 
@@ -420,7 +426,65 @@ class TicketPanel extends ConsumerWidget {
     await _guard(context, () => vm.moveTo(choice.table));
   }
 
-  Future<void> _confirmCancel(BuildContext context, OrderViewModel vm) async {
+  /// "−" on an item already sent: reason + manager, then the bar/kitchen gets an ANNULÉ slip.
+  Future<void> _cancelSent(BuildContext context, WidgetRef ref, OrderViewModel vm, OrderLineRow l) async {
+    final approval = await _askCancelApproval(context, ref, what: 'Annuler 1 × ${l.name} (déjà envoyé)');
+    if (approval == null || !context.mounted) return;
+    final orderId = ref.read(ticketProvider).order?.id;
+    final ok = await _guard(context, () => vm.decrement(l, approval: approval));
+    if (ok && orderId != null && context.mounted) {
+      await _print(
+        context,
+        () => ref.read(printActionsProvider).printCancellation(orderId, items: [(l.id, 1)], reason: approval.reason),
+        'Annulation envoyée en préparation ✓',
+      );
+    }
+  }
+
+  /// Reason, then a manager's PIN (or the manager logged in).
+  Future<Approval?> _askCancelApproval(BuildContext context, WidgetRef ref, {required String what}) async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder:
+          (c) => SimpleDialog(
+            title: Text(what),
+            children: [
+              for (final e in CancelReasons.labels.entries)
+                SimpleDialogOption(
+                  key: Key('cancel-reason-${e.key}'),
+                  onPressed: () => Navigator.pop(c, e.key),
+                  child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(e.value)),
+                ),
+            ],
+          ),
+    );
+    if (reason == null || !context.mounted) return null;
+    final approver = await askManagerApproval(context, ref, what: '$what — ${CancelReasons.label(reason)}');
+    return approver == null ? null : Approval(approvedBy: approver, reason: reason);
+  }
+
+  Future<void> _confirmCancel(BuildContext context, WidgetRef ref, OrderViewModel vm, TicketState ticket) async {
+    // Items already at the bar/kitchen: a manager must approve, and they get an ANNULÉ slip.
+    final sent = [
+      for (final l in ticket.lines)
+        if (l.sentAt != null) l,
+    ];
+    if (sent.isNotEmpty) {
+      final approval = await _askCancelApproval(context, ref, what: 'Annuler le ticket (déjà envoyé en préparation)');
+      if (approval == null || !context.mounted) return;
+      final orderId = ticket.order!.id;
+      final ok = await _guard(context, () => vm.cancelOrder(approval: approval));
+      if (ok && context.mounted) {
+        await _print(
+          context,
+          () => ref
+              .read(printActionsProvider)
+              .printCancellation(orderId, items: [for (final l in sent) (l.id, l.qty)], reason: approval.reason),
+          'Annulation envoyée en préparation ✓',
+        );
+      }
+      return;
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder:

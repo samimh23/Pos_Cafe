@@ -171,12 +171,18 @@ Uint8List stationDocument({
   String? table,
   String? staff,
   required List<PrintLine> lines,
+  String? cancelledBecause,
 }) {
+  final cancelled = cancelledBecause != null;
   final p =
       EscPos(width: width)
         ..bold()
         ..big()
-        ..text(station == 'kitchen' ? 'CUISINE' : 'BAR', at: EscPos.center, isBig: true)
+        ..text(
+          '${cancelled ? 'ANNULÉ ' : ''}${station == 'kitchen' ? 'CUISINE' : 'BAR'}',
+          at: EscPos.center,
+          isBig: true,
+        )
         ..text(table == null ? 'Comptoir' : 'Table $table', at: EscPos.center, isBig: true)
         ..big(false)
         ..bold(false)
@@ -186,13 +192,14 @@ Uint8List stationDocument({
     p
       ..bold()
       ..big()
-      ..text('${l.qty} x ${l.name}', isBig: true)
+      ..text('${cancelled ? '-' : ''}${l.qty} x ${l.name}', isBig: true)
       ..big(false)
       ..bold(false);
     for (final m in l.modifiers) {
       p.text('    + $m');
     }
   }
+  if (cancelled) p.text('Motif : $cancelledBecause');
   p
     ..separator()
     ..cut();

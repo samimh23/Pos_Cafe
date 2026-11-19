@@ -39,6 +39,10 @@ abstract interface class PrintActions {
   Future<SendResult> sendOrder(String orderId);
   Future<void> printBill(String orderId);
   Future<void> printReceipt(String orderId);
+
+  /// "ANNULÉ" slip at the bar/kitchen for items taken back after "Envoyer":
+  /// [items] = (line id, quantity cancelled).
+  Future<void> printCancellation(String orderId, {required List<(String, int)> items, required String reason});
 }
 
 /// Prints on the printers set on this POS (⋮ → Imprimantes).
@@ -158,6 +162,44 @@ class PrintService implements PrintActions {
     }
     if (failures.isNotEmpty) throw PrintException(failures.join('\n'));
     return SendResult(printed);
+  }
+
+  @override
+  Future<void> printCancellation(String orderId, {required List<(String, int)> items, required String reason}) async {
+    final order = await _order(orderId);
+    final s = await settings();
+    final staff = await _staffName();
+    final all = await (_db.select(_db.orderLines)..where((l) => l.orderId.equals(orderId))).get();
+    final byId = {for (final l in all) l.id: l};
+    for (final station in ['bar', 'kitchen']) {
+      final group = [
+        for (final (id, qty) in items)
+          if (byId[id]?.station == station && byId[id]?.sentAt != null) (byId[id]!, qty),
+      ];
+      if (group.isEmpty) continue;
+      final printer = s.forStation(station);
+      if (printer == null) throw const PrintException('Aucune imprimante pour le bar ou la cuisine.');
+      await _transport.send(
+        printer,
+        stationDocument(
+          width: printer.width,
+          station: station,
+          at: _now(),
+          table: order.tableLabel,
+          staff: staff,
+          cancelledBecause: CancelReasons.label(reason),
+          lines: [
+            for (final (l, qty) in group)
+              PrintLine(
+                qty: qty,
+                name: l.name,
+                modifiers: [for (final m in parseChosenModifiers(l.modifiersJson)) m.name],
+                total: Money.zero,
+              ),
+          ],
+        ),
+      );
+    }
   }
 
   // ── Customer documents ───────────────────────────────────

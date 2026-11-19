@@ -232,11 +232,21 @@ class HubServer {
             ],
           );
         case 'set_qty':
-          await repo.setQty(c['lineId'] as String, c['qty'] as int);
+          await repo.setQty(c['lineId'] as String, c['qty'] as int, approval: Approval.fromJson(c['approval']));
         case 'remove_line':
-          await repo.removeLine(c['lineId'] as String);
+          await repo.removeLine(c['lineId'] as String, approval: Approval.fromJson(c['approval']));
         case 'cancel':
-          await repo.cancelOrder(c['orderId'] as String);
+          await repo.cancelOrder(c['orderId'] as String, approval: Approval.fromJson(c['approval']));
+        case 'print_cancel':
+          try {
+            await _print(staffId).printCancellation(
+              c['orderId'] as String,
+              items: [for (final i in (c['items'] as List)) ((i as Map)['lineId'] as String, i['qty'] as int)],
+              reason: c['reason'] as String,
+            );
+          } on PrintException catch (e) {
+            return (409, _error(e.message));
+          }
         case 'move':
           await repo.moveOrder(c['orderId'] as String, await _table(c['tableId'] as String?));
         case 'discount':

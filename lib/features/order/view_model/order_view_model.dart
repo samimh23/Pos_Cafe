@@ -89,13 +89,13 @@ class OrderViewModel extends Notifier<bool> {
 
   Future<void> increment(OrderLineRow l) => _repo.setQty(l.id, l.qty + 1);
 
-  Future<void> decrement(OrderLineRow l) => _repo.setQty(l.id, l.qty - 1);
+  Future<void> decrement(OrderLineRow l, {Approval? approval}) => _repo.setQty(l.id, l.qty - 1, approval: approval);
 
   Future<void> remove(OrderLineRow l) => _repo.removeLine(l.id);
 
-  Future<void> cancelOrder() async {
+  Future<void> cancelOrder({Approval? approval}) async {
     final id = _orderId;
-    if (id != null) await _repo.cancelOrder(id);
+    if (id != null) await _repo.cancelOrder(id, approval: approval);
   }
 
   Future<void> discount(DiscountRequest request) async {
