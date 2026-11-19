@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/order/data/order_repository.dart';
 import '../../features/order/view_model/order_view_model.dart';
+import '../../features/print/print_providers.dart';
 import '../../features/staff_login/view_model/staff_session.dart';
 import '../db/app_database.dart';
 import '../providers.dart';
@@ -62,6 +63,7 @@ final hubServerProvider = Provider<HubServer?>((ref) {
     outbox: ref.watch(outboxRepositoryProvider),
     identity: identity,
     lanInfo: () => _readLanInfo(db),
+    printer: ref.watch(printerTransportProvider),
   );
   Timer? report;
   var disposed = false;

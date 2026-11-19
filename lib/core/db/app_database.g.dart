@@ -2523,6 +2523,15 @@ class $OrderLinesTable extends OrderLines
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sentAtMeta = const VerificationMeta('sentAt');
+  @override
+  late final GeneratedColumn<DateTime> sentAt = GeneratedColumn<DateTime>(
+    'sent_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2539,6 +2548,7 @@ class $OrderLinesTable extends OrderLines
     voided,
     createdAt,
     paymentId,
+    sentAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2655,6 +2665,12 @@ class $OrderLinesTable extends OrderLines
         paymentId.isAcceptableOrUnknown(data['payment_id']!, _paymentIdMeta),
       );
     }
+    if (data.containsKey('sent_at')) {
+      context.handle(
+        _sentAtMeta,
+        sentAt.isAcceptableOrUnknown(data['sent_at']!, _sentAtMeta),
+      );
+    }
     return context;
   }
 
@@ -2732,6 +2748,10 @@ class $OrderLinesTable extends OrderLines
         DriftSqlType.string,
         data['${effectivePrefix}payment_id'],
       ),
+      sentAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}sent_at'],
+      ),
     );
   }
 
@@ -2764,6 +2784,9 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
 
   /// Set when this line was paid on its own ("split by items", v5) — it can't be changed anymore.
   final String? paymentId;
+
+  /// When the line was sent to the bar / kitchen printer (v8). Null = not sent yet.
+  final DateTime? sentAt;
   const OrderLineRow({
     required this.id,
     required this.orderId,
@@ -2779,6 +2802,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     required this.voided,
     required this.createdAt,
     this.paymentId,
+    this.sentAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2800,6 +2824,9 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || paymentId != null) {
       map['payment_id'] = Variable<String>(paymentId);
+    }
+    if (!nullToAbsent || sentAt != null) {
+      map['sent_at'] = Variable<DateTime>(sentAt);
     }
     return map;
   }
@@ -2823,6 +2850,8 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
           paymentId == null && nullToAbsent
               ? const Value.absent()
               : Value(paymentId),
+      sentAt:
+          sentAt == null && nullToAbsent ? const Value.absent() : Value(sentAt),
     );
   }
 
@@ -2846,6 +2875,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       voided: serializer.fromJson<bool>(json['voided']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       paymentId: serializer.fromJson<String?>(json['paymentId']),
+      sentAt: serializer.fromJson<DateTime?>(json['sentAt']),
     );
   }
   @override
@@ -2866,6 +2896,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       'voided': serializer.toJson<bool>(voided),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'paymentId': serializer.toJson<String?>(paymentId),
+      'sentAt': serializer.toJson<DateTime?>(sentAt),
     };
   }
 
@@ -2884,6 +2915,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     bool? voided,
     DateTime? createdAt,
     Value<String?> paymentId = const Value.absent(),
+    Value<DateTime?> sentAt = const Value.absent(),
   }) => OrderLineRow(
     id: id ?? this.id,
     orderId: orderId ?? this.orderId,
@@ -2899,6 +2931,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     voided: voided ?? this.voided,
     createdAt: createdAt ?? this.createdAt,
     paymentId: paymentId.present ? paymentId.value : this.paymentId,
+    sentAt: sentAt.present ? sentAt.value : this.sentAt,
   );
   OrderLineRow copyWithCompanion(OrderLinesCompanion data) {
     return OrderLineRow(
@@ -2922,6 +2955,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
       voided: data.voided.present ? data.voided.value : this.voided,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       paymentId: data.paymentId.present ? data.paymentId.value : this.paymentId,
+      sentAt: data.sentAt.present ? data.sentAt.value : this.sentAt,
     );
   }
 
@@ -2941,7 +2975,8 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
           ..write('note: $note, ')
           ..write('voided: $voided, ')
           ..write('createdAt: $createdAt, ')
-          ..write('paymentId: $paymentId')
+          ..write('paymentId: $paymentId, ')
+          ..write('sentAt: $sentAt')
           ..write(')'))
         .toString();
   }
@@ -2962,6 +2997,7 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
     voided,
     createdAt,
     paymentId,
+    sentAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2980,7 +3016,8 @@ class OrderLineRow extends DataClass implements Insertable<OrderLineRow> {
           other.note == this.note &&
           other.voided == this.voided &&
           other.createdAt == this.createdAt &&
-          other.paymentId == this.paymentId);
+          other.paymentId == this.paymentId &&
+          other.sentAt == this.sentAt);
 }
 
 class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
@@ -2998,6 +3035,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
   final Value<bool> voided;
   final Value<DateTime> createdAt;
   final Value<String?> paymentId;
+  final Value<DateTime?> sentAt;
   final Value<int> rowid;
   const OrderLinesCompanion({
     this.id = const Value.absent(),
@@ -3014,6 +3052,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     this.voided = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.paymentId = const Value.absent(),
+    this.sentAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OrderLinesCompanion.insert({
@@ -3031,6 +3070,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     this.voided = const Value.absent(),
     required DateTime createdAt,
     this.paymentId = const Value.absent(),
+    this.sentAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        orderId = Value(orderId),
@@ -3055,6 +3095,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     Expression<bool>? voided,
     Expression<DateTime>? createdAt,
     Expression<String>? paymentId,
+    Expression<DateTime>? sentAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3072,6 +3113,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
       if (voided != null) 'voided': voided,
       if (createdAt != null) 'created_at': createdAt,
       if (paymentId != null) 'payment_id': paymentId,
+      if (sentAt != null) 'sent_at': sentAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3091,6 +3133,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     Value<bool>? voided,
     Value<DateTime>? createdAt,
     Value<String?>? paymentId,
+    Value<DateTime?>? sentAt,
     Value<int>? rowid,
   }) {
     return OrderLinesCompanion(
@@ -3108,6 +3151,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
       voided: voided ?? this.voided,
       createdAt: createdAt ?? this.createdAt,
       paymentId: paymentId ?? this.paymentId,
+      sentAt: sentAt ?? this.sentAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3157,6 +3201,9 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
     if (paymentId.present) {
       map['payment_id'] = Variable<String>(paymentId.value);
     }
+    if (sentAt.present) {
+      map['sent_at'] = Variable<DateTime>(sentAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3180,6 +3227,7 @@ class OrderLinesCompanion extends UpdateCompanion<OrderLineRow> {
           ..write('voided: $voided, ')
           ..write('createdAt: $createdAt, ')
           ..write('paymentId: $paymentId, ')
+          ..write('sentAt: $sentAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7053,6 +7101,7 @@ typedef $$OrderLinesTableCreateCompanionBuilder =
       Value<bool> voided,
       required DateTime createdAt,
       Value<String?> paymentId,
+      Value<DateTime?> sentAt,
       Value<int> rowid,
     });
 typedef $$OrderLinesTableUpdateCompanionBuilder =
@@ -7071,6 +7120,7 @@ typedef $$OrderLinesTableUpdateCompanionBuilder =
       Value<bool> voided,
       Value<DateTime> createdAt,
       Value<String?> paymentId,
+      Value<DateTime?> sentAt,
       Value<int> rowid,
     });
 
@@ -7150,6 +7200,11 @@ class $$OrderLinesTableFilterComposer
 
   ColumnFilters<String> get paymentId => $composableBuilder(
     column: $table.paymentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get sentAt => $composableBuilder(
+    column: $table.sentAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7232,6 +7287,11 @@ class $$OrderLinesTableOrderingComposer
     column: $table.paymentId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get sentAt => $composableBuilder(
+    column: $table.sentAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OrderLinesTableAnnotationComposer
@@ -7288,6 +7348,9 @@ class $$OrderLinesTableAnnotationComposer
 
   GeneratedColumn<String> get paymentId =>
       $composableBuilder(column: $table.paymentId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get sentAt =>
+      $composableBuilder(column: $table.sentAt, builder: (column) => column);
 }
 
 class $$OrderLinesTableTableManager
@@ -7335,6 +7398,7 @@ class $$OrderLinesTableTableManager
                 Value<bool> voided = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> paymentId = const Value.absent(),
+                Value<DateTime?> sentAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderLinesCompanion(
                 id: id,
@@ -7351,6 +7415,7 @@ class $$OrderLinesTableTableManager
                 voided: voided,
                 createdAt: createdAt,
                 paymentId: paymentId,
+                sentAt: sentAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7369,6 +7434,7 @@ class $$OrderLinesTableTableManager
                 Value<bool> voided = const Value.absent(),
                 required DateTime createdAt,
                 Value<String?> paymentId = const Value.absent(),
+                Value<DateTime?> sentAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrderLinesCompanion.insert(
                 id: id,
@@ -7385,6 +7451,7 @@ class $$OrderLinesTableTableManager
                 voided: voided,
                 createdAt: createdAt,
                 paymentId: paymentId,
+                sentAt: sentAt,
                 rowid: rowid,
               ),
           withReferenceMapper:

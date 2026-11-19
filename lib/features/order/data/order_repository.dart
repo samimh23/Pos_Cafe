@@ -165,7 +165,7 @@ class OrderRepository implements OrderActions {
   // ── Actions ──────────────────────────────────────────────
 
   /// Adds a product to the ticket of [table] (null = counter).
-  /// Same product with the same modifiers → quantity + 1 (never on an already-paid line).
+  /// Same product with the same modifiers → quantity + 1 (never on a line already paid or sent).
   @override
   Future<void> addProduct(ProductRow p, {DiningTableRow? table, List<ModifierOption> modifiers = const []}) {
     return _db.transaction(() async {
@@ -180,7 +180,9 @@ class OrderRepository implements OrderActions {
                       l.productId.equals(p.id) &
                       l.modifiersJson.equals(modifiersJson) &
                       l.voided.equals(false) &
-                      l.paymentId.isNull(),
+                      l.paymentId.isNull() &
+                      // Already sent to the bar/kitchen: a new round is a NEW line, so it gets sent too.
+                      l.sentAt.isNull(),
                 )
                 ..limit(1))
               .getSingleOrNull();
@@ -225,11 +227,51 @@ class OrderRepository implements OrderActions {
   Future<void> setQty(String lineId, int qty) => _db.transaction(() async {
     final line = await _changeableLine(lineId);
     if (qty <= 0) {
-      await _void(line, 'removed_before_send');
+      await _void(line, line.sentAt == null ? 'removed_before_send' : 'removed_after_send');
+    } else if (line.sentAt != null && qty > line.qty) {
+      // Already sent to the bar/kitchen: the extra goes on a NEW line, so "Envoyer" sends it.
+      await _addLineLike(line, qty - line.qty);
     } else {
       await _setQty(line, qty);
     }
   });
+
+  /// A new (not sent) line with the same product, options and prices as [like].
+  Future<void> _addLineLike(OrderLineRow like, int qty) async {
+    final id = newId();
+    await _db
+        .into(_db.orderLines)
+        .insert(
+          OrderLinesCompanion.insert(
+            id: id,
+            orderId: like.orderId,
+            productId: like.productId,
+            name: like.name,
+            unitPrice: like.unitPrice,
+            modifiersPrice: Value(like.modifiersPrice),
+            modifiersJson: Value(like.modifiersJson),
+            qty: qty,
+            vatRateBp: like.vatRateBp,
+            station: Value(like.station),
+            createdAt: _now(),
+          ),
+        );
+    await _outbox.record(
+      staffId: _staffId(),
+      type: EventTypes.orderItemAdded,
+      entityId: like.orderId,
+      payload: {
+        'lineId': id,
+        'productId': like.productId,
+        'name': like.name,
+        'unitPrice': like.unitPrice,
+        'qty': qty,
+        'vatRateBp': like.vatRateBp,
+        'station': like.station,
+        'modifiers': jsonDecode(like.modifiersJson),
+      },
+    );
+  }
 
   @override
   Future<void> removeLine(String lineId) =>

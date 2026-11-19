@@ -72,6 +72,9 @@ abstract class PosApi {
 
   /// The Hub tells the cloud where the other POS can reach it.
   Future<void> reportLan(List<String> addresses, int port);
+
+  /// Café details printed on receipts (name, matricule fiscal, address…).
+  Future<Map<String, dynamic>> business();
 }
 
 class DioPosApi implements PosApi {
@@ -124,6 +127,9 @@ class DioPosApi implements PosApi {
 
   @override
   Future<Map<String, dynamic>> lanInfo() => _call(() => _dio.get('/v1/devices/lan'));
+
+  @override
+  Future<Map<String, dynamic>> business() => _call(() => _dio.get('/v1/devices/business'));
 
   @override
   Future<void> reportLan(List<String> addresses, int port) =>

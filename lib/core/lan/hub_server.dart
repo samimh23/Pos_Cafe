@@ -6,6 +6,8 @@ import 'package:drift/drift.dart';
 
 import '../../features/cash/data/cash_repository.dart';
 import '../../features/order/data/order_repository.dart';
+import '../../features/print/print_service.dart';
+import '../print/printers.dart';
 import '../db/app_database.dart';
 import '../device/device_repository.dart';
 import '../menu/modifiers.dart';
@@ -26,11 +28,13 @@ class HubServer {
     required DeviceIdentity identity,
     required Future<LanInfo?> Function() lanInfo,
     int port = HubProtocol.port,
+    PrinterTransport printer = const NetworkPrinterTransport(),
     DateTime Function()? clock,
   }) : _db = db,
        _outbox = outbox,
        _identity = identity,
        _lanInfo = lanInfo,
+       _printer = printer,
        _requestedPort = port,
        _now = clock ?? DateTime.now;
 
@@ -38,6 +42,9 @@ class HubServer {
   final OutboxRepository _outbox;
   final DeviceIdentity _identity;
   final Future<LanInfo?> Function() _lanInfo;
+
+  /// The printers are connected to the main POS; tablets print through it.
+  final PrinterTransport _printer;
   final DateTime Function() _now;
 
   /// 0 = any free port (tests).
@@ -232,6 +239,30 @@ class HubServer {
           await repo.moveOrder(c['orderId'] as String, await _table(c['tableId'] as String?));
         case 'request_bill':
           await repo.requestBill(c['orderId'] as String);
+          // The cashier gets "l'addition" printed at the counter right away (if a printer is set).
+          var printed = true;
+          try {
+            await _print(staffId).printBill(c['orderId'] as String);
+          } on PrintException {
+            printed = false;
+          }
+          return (200, {'ok': true, 'printed': printed});
+        case 'send_order' || 'print_bill' || 'print_receipt':
+          try {
+            final p = _print(staffId);
+            final id = c['orderId'] as String;
+            switch (c['action']) {
+              case 'send_order':
+                return (200, {'ok': true, 'printed': (await p.sendOrder(id)).printed});
+              case 'print_bill':
+                await p.printBill(id);
+              default:
+                await p.printReceipt(id);
+            }
+            return (200, {'ok': true});
+          } on PrintException catch (e) {
+            return (409, _error(e.message));
+          }
         case 'pay':
           if (!device.canTakePayments) return (403, _error('Cette caisse ne peut pas encaisser.'));
           final amount = Money(c['amount'] as int);
@@ -265,6 +296,9 @@ class HubServer {
       return (409, _error(e.message));
     }
   }
+
+  PrintService _print(String staffId) =>
+      PrintService(_db, _outbox, transport: _printer, staffId: () => staffId, clock: _now);
 
   /// A tablet's own cash drawer, kept on the main POS like its tickets.
   Future<(int, Map<String, Object?>)> _cash(LanDevice device, String staffId, Map<String, dynamic> c) async {

@@ -227,50 +227,63 @@ Color gapColor(Money gap) {
 }
 
 /// The closing report ("Z") shown right after closing.
-Future<void> showClosingReport(BuildContext context, CashClosing c) => showDialog<void>(
-  context: context,
-  builder: (context) {
-    final s = c.summary;
-    final text = Theme.of(context).textTheme;
-    Widget row(String label, Money m, {Key? key, TextStyle? style}) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(children: [Expanded(child: Text(label, style: style)), Text(m.toString(), key: key, style: style)]),
-    );
-    String time(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-    return AlertDialog(
-      key: const Key('closing-report'),
-      title: const Text('Clôture de caisse'),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Ouverte à ${time(s.openedAt)}${s.openedBy == null ? '' : ' par ${s.openedBy}'} · '
-              'clôturée à ${time(c.closedAt)}${c.closedBy == null ? '' : ' par ${c.closedBy}'}',
+/// [onPrint]: prints the report on the receipt printer (null = no printer here).
+Future<void> showClosingReport(BuildContext context, CashClosing c, {Future<void> Function()? onPrint}) =>
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        final s = c.summary;
+        final text = Theme.of(context).textTheme;
+        Widget row(String label, Money m, {Key? key, TextStyle? style}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [Expanded(child: Text(label, style: style)), Text(m.toString(), key: key, style: style)],
+          ),
+        );
+        String time(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+        return AlertDialog(
+          key: const Key('closing-report'),
+          title: const Text('Clôture de caisse'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Ouverte à ${time(s.openedAt)}${s.openedBy == null ? '' : ' par ${s.openedBy}'} · '
+                  'clôturée à ${time(c.closedAt)}${c.closedBy == null ? '' : ' par ${c.closedBy}'}',
+                ),
+                Text('${s.ticketCount} ticket${s.ticketCount > 1 ? 's' : ''} encaissé${s.ticketCount > 1 ? 's' : ''}'),
+                const Divider(height: 24),
+                row('Fond de caisse', s.openingFloat),
+                row('Ventes espèces', s.cashSales),
+                row('Entrées d’argent', s.cashIn),
+                row('Sorties d’argent', -s.cashOut),
+                row('Espèces attendues', s.expectedCash, style: text.titleMedium),
+                row('Espèces comptées', c.counted, style: text.titleMedium),
+                row(
+                  'Écart',
+                  c.difference,
+                  key: const Key('report-gap'),
+                  style: text.titleLarge?.copyWith(color: gapColor(c.difference)),
+                ),
+                const Divider(height: 24),
+                row('Ventes carte (TPE)', s.cardSales),
+                if (c.note != null) ...[const SizedBox(height: 8), Text('Commentaire : ${c.note}')],
+              ],
             ),
-            Text('${s.ticketCount} ticket${s.ticketCount > 1 ? 's' : ''} encaissé${s.ticketCount > 1 ? 's' : ''}'),
-            const Divider(height: 24),
-            row('Fond de caisse', s.openingFloat),
-            row('Ventes espèces', s.cashSales),
-            row('Entrées d’argent', s.cashIn),
-            row('Sorties d’argent', -s.cashOut),
-            row('Espèces attendues', s.expectedCash, style: text.titleMedium),
-            row('Espèces comptées', c.counted, style: text.titleMedium),
-            row(
-              'Écart',
-              c.difference,
-              key: const Key('report-gap'),
-              style: text.titleLarge?.copyWith(color: gapColor(c.difference)),
-            ),
-            const Divider(height: 24),
-            row('Ventes carte (TPE)', s.cardSales),
-            if (c.note != null) ...[const SizedBox(height: 8), Text('Commentaire : ${c.note}')],
+          ),
+          actions: [
+            if (onPrint != null)
+              TextButton.icon(
+                key: const Key('report-print'),
+                icon: const Icon(Icons.print),
+                label: const Text('Imprimer'),
+                onPressed: onPrint,
+              ),
+            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Terminer')),
           ],
-        ),
-      ),
-      actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Terminer'))],
+        );
+      },
     );
-  },
-);

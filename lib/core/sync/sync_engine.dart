@@ -6,6 +6,7 @@ import '../api/pos_api.dart';
 import '../db/app_database.dart';
 import '../device/device_repository.dart';
 import '../lan/lan_info.dart';
+import '../print/business_info.dart';
 import 'outbox_repository.dart';
 
 class SyncResult {
@@ -41,6 +42,8 @@ class SyncEngine {
     try {
       final info = LanInfo.fromJson(await _api.lanInfo());
       await _db.setKv(LanInfo.kvKey, info.encode());
+      // Receipt header/footer, kept locally so receipts print offline too.
+      await _db.setKv(BusinessInfo.kvKey, jsonEncode(await _api.business()));
     } on ApiException catch (e) {
       if (e.isNetwork) rethrow; // offline: the sync status shows it
       // Older backend without the endpoint: keep working on our own.

@@ -13,6 +13,19 @@ flutter run -d windows --dart-define=API_URL=http://192.168.1.10:3000
 
 First launch shows the **pairing screen**: enter a pairing code (for now from `pnpm db:seed` in the backend).
 
+## Printing (no printer needed)
+
+The POS prints on network thermal printers (ESC/POS, port 9100). To try it without one,
+run the virtual printer: it receives exactly what a real printer would and shows the ticket.
+
+```bash
+dart run tool/virtual_printer.dart              # one printer, port 9100
+dart run tool/virtual_printer.dart 9100 9101    # counter + bar
+```
+
+Then on the main POS: ⋮ → Imprimantes → address `127.0.0.1` (or this PC's Wi-Fi address from a
+tablet), port 9100 → Tester. Tickets are also saved in `build/printed/`.
+
 ## Tests
 
 ```bash

@@ -9,6 +9,8 @@ import '../../../core/money/money.dart';
 import '../../../core/sync/sync_controller.dart';
 import '../../../core/lan/hub_widgets.dart';
 import '../../cash/view/cash_screen.dart';
+import '../../print/view/printers_screen.dart';
+import '../../../core/lan/lan_providers.dart';
 import '../../floor/view_model/floor_view_model.dart';
 import '../../order/view/modifiers_dialog.dart';
 import '../../order/view/ticket_panel.dart';
@@ -85,21 +87,29 @@ class PosAppBarActions extends ConsumerWidget {
         HubStatusChip(compact: compact),
         const SizedBox(width: 8),
         _SyncStatusChip(compact: compact),
-        if (kDebugMode)
-          PopupMenuButton<String>(
-            tooltip: 'Développement',
-            onSelected:
-                (v) => switch (v) {
-                  'event' => vm.recordTestEvent(),
-                  'forget' => vm.forgetDevice(),
-                  _ => null,
-                },
-            itemBuilder:
-                (_) => const [
+        PopupMenuButton<String>(
+          key: const Key('pos-menu'),
+          tooltip: 'Menu',
+          onSelected:
+              (v) => switch (v) {
+                'printers' => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute<void>(builder: (_) => const PrintersScreen())),
+                'event' => vm.recordTestEvent(),
+                'forget' => vm.forgetDevice(),
+                _ => null,
+              },
+          itemBuilder:
+              (_) => [
+                // Tablets print on the main POS's printers: nothing to set there.
+                if (ref.read(posModeProvider) != PosMode.tablet)
+                  const PopupMenuItem(value: 'printers', child: Text('Imprimantes')),
+                if (kDebugMode) ...const [
                   PopupMenuItem(value: 'event', child: Text('Créer un événement test')),
                   PopupMenuItem(value: 'forget', child: Text('Dissocier cette caisse')),
                 ],
-          ),
+              ],
+        ),
         const SizedBox(width: 8),
       ],
     );

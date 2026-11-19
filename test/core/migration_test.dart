@@ -32,6 +32,8 @@ void main() {
     await db.customStatement('DROP TABLE cash_sessions');
     await db.customStatement('DROP TABLE cash_movements');
     await db.customStatement('ALTER TABLE payments DROP COLUMN drawer_id');
+    // v8 addition
+    await db.customStatement('ALTER TABLE order_lines DROP COLUMN sent_at');
     await db.customStatement('PRAGMA user_version = 2');
     await db.close();
 

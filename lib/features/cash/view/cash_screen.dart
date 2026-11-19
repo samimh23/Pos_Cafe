@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/lan/lan_providers.dart';
 import '../../../core/money/money.dart';
+import '../../../core/print/printers.dart';
+import '../../../core/providers.dart';
 import '../../order/data/order_repository.dart' show OrderException;
+import '../../print/print_providers.dart';
 import '../data/cash_repository.dart';
 import '../view_model/cash_view_model.dart';
 import 'cash_dialogs.dart';
@@ -142,7 +145,26 @@ class _OpenDrawer extends ConsumerWidget {
       });
       if (!ok || closing == null || !context.mounted) return;
       ref.invalidate(cashSummaryProvider);
-      await showClosingReport(context, closing!);
+      // The report prints on this POS's receipt printer (the main POS, or a POS alone).
+      final canPrint =
+          ref.read(posModeProvider) != PosMode.tablet && (ref.read(printerSettingsProvider).value?.receipt != null);
+      final drawer = ref.read(deviceIdentityProvider).value?.deviceCode ?? '';
+      final messenger = ScaffoldMessenger.of(context);
+      await showClosingReport(
+        context,
+        closing!,
+        onPrint:
+            canPrint
+                ? () async {
+                  try {
+                    await ref.read(printServiceProvider).printCashReport(closing!, drawer: drawer);
+                    messenger.showSnackBar(const SnackBar(content: Text('Clôture imprimée ✓')));
+                  } on PrintException catch (e) {
+                    messenger.showSnackBar(SnackBar(content: Text(e.message)));
+                  }
+                }
+                : null,
+      );
       if (context.mounted) Navigator.of(context).maybePop();
     }
 

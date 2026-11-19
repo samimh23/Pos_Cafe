@@ -34,6 +34,22 @@ class FakePosApi implements PosApi {
     return lan;
   }
 
+  /// What GET /v1/devices/business returns.
+  Map<String, dynamic> businessInfo = {
+    'businessName': "Sami's Coffe",
+    'taxId': '1234567/A/M/000',
+    'branchName': "Sami's Coffe",
+    'address': 'Rue de Marseille, Tunis',
+    'phone': '71 000 000',
+    'receiptFooter': null,
+  };
+
+  @override
+  Future<Map<String, dynamic>> business() async {
+    _maybeFail();
+    return businessInfo;
+  }
+
   @override
   Future<void> reportLan(List<String> addresses, int port) async {
     _maybeFail();

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../features/cash/data/cash_repository.dart';
 import '../../features/order/data/order_repository.dart';
+import '../../features/print/print_service.dart';
 import '../db/app_database.dart';
 import '../device/device_repository.dart';
 import '../ids.dart';
@@ -304,4 +305,24 @@ class HubCashActions implements CashActions {
   Future<CashClosing> close({required Money counted, String? note}) async => CashClosing.fromJson(
     ((await _send('cash_close', {'counted': counted.millimes, 'note': note}))['result'] as Map).cast<String, dynamic>(),
   );
+}
+
+/// A tablet prints on the main POS's printers.
+class HubPrintActions implements PrintActions {
+  HubPrintActions(this._client, {required String? Function() staffId}) : _staffId = staffId;
+  final HubClient _client;
+  final String? Function() _staffId;
+
+  @override
+  Future<SendResult> sendOrder(String orderId) async {
+    final r = await _client.command('send_order', {'orderId': orderId}, staffId: _staffId());
+    return SendResult(((r['printed'] as Map?) ?? const {}).cast<String, int>());
+  }
+
+  @override
+  Future<void> printBill(String orderId) => _client.command('print_bill', {'orderId': orderId}, staffId: _staffId());
+
+  @override
+  Future<void> printReceipt(String orderId) =>
+      _client.command('print_receipt', {'orderId': orderId}, staffId: _staffId());
 }

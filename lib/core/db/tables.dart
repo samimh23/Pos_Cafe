@@ -82,6 +82,7 @@ class Orders extends Table {
 
   /// takeaway | table
   TextColumn get type => text().withDefault(const Constant('takeaway'))();
+
   /// Table name snapshot ("4") — stays right even if the table is renamed later.
   TextColumn get tableLabel => text().nullable()();
 
@@ -129,6 +130,9 @@ class OrderLines extends Table {
 
   /// Set when this line was paid on its own ("split by items", v5) — it can't be changed anymore.
   TextColumn get paymentId => text().nullable()();
+
+  /// When the line was sent to the bar / kitchen printer (v8). Null = not sent yet.
+  DateTimeColumn get sentAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

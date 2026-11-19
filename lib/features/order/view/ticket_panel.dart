@@ -8,6 +8,8 @@ import '../../../core/money/order_totals.dart';
 import '../../cash/view/cash_screen.dart';
 import '../../cash/view_model/cash_view_model.dart';
 import '../../floor/view_model/floor_view_model.dart';
+import '../../print/print_providers.dart';
+import '../../../core/print/printers.dart';
 import '../data/order_repository.dart';
 import '../view_model/order_view_model.dart';
 import 'move_ticket_dialog.dart';
@@ -22,6 +24,11 @@ class TicketPanel extends ConsumerWidget {
     final ticket = ref.watch(ticketProvider);
     final target = ref.watch(activeTargetProvider);
     final canPay = ref.watch(canTakePaymentsProvider);
+    final canPrint = ref.watch(canPrintProvider);
+    // Items not sent to the bar / kitchen yet.
+    final unsent = ticket.lines
+        .where((l) => l.sentAt == null && (l.station == 'bar' || l.station == 'kitchen'))
+        .fold(0, (sum, l) => sum + l.qty);
     final billRequested = ticket.order?.billRequestedAt != null;
     final hasTables = ref.watch(hasTablesProvider);
     final busy = ref.watch(orderViewModelProvider);
@@ -55,6 +62,18 @@ class TicketPanel extends ConsumerWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
+              if (canPay && canPrint && ticket.order != null && !ticket.isEmpty)
+                IconButton(
+                  key: const Key('print-bill'),
+                  tooltip: 'Imprimer l’addition',
+                  icon: const Icon(Icons.receipt_long),
+                  onPressed:
+                      () => _print(
+                        context,
+                        () => ref.read(printActionsProvider).printBill(ticket.order!.id),
+                        'Addition imprimée ✓',
+                      ),
+                ),
               if (hasTables && ticket.order != null)
                 IconButton(
                   key: const Key('move-ticket'),
@@ -86,6 +105,16 @@ class TicketPanel extends ConsumerWidget {
                       final mods = parseChosenModifiers(l.modifiersJson).map((m) => m.name).join(', ');
                       return ListTile(
                         key: Key('line-${l.productId}${paid ? '-paid' : ''}'),
+                        // ✓ = already sent to the bar / kitchen.
+                        leading:
+                            l.sentAt != null
+                                ? Icon(
+                                  Icons.check_circle,
+                                  size: 18,
+                                  color: Colors.green.shade600,
+                                  semanticLabel: 'Envoyé',
+                                )
+                                : null,
                         title: Text(l.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(
                           [
@@ -161,6 +190,19 @@ class TicketPanel extends ConsumerWidget {
                   ],
                 ),
               ],
+              if (canPrint && unsent > 0) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    key: const Key('send-order'),
+                    icon: const Icon(Icons.send),
+                    label: Text('Envoyer au bar / cuisine ($unsent)'),
+                    onPressed: () => _send(context, ref, ticket.order!.id),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -188,6 +230,32 @@ class TicketPanel extends ConsumerWidget {
     );
   }
 
+  /// Prints and says so; a printer problem is shown, never silently lost.
+  Future<void> _print(BuildContext context, Future<void> Function() action, String done) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await action();
+      messenger.showSnackBar(SnackBar(content: Text(done)));
+    } on PrintException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } on OrderException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// "Envoyer": the new items go to the bar / kitchen printers.
+  Future<void> _send(BuildContext context, WidgetRef ref, String orderId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final r = await ref.read(printActionsProvider).sendOrder(orderId);
+      messenger.showSnackBar(SnackBar(content: Text('${r.message} ✓')));
+    } on PrintException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message), duration: const Duration(seconds: 8)));
+    } on OrderException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message), duration: const Duration(seconds: 8)));
+    }
+  }
+
   /// Shows refusals (e.g. "Cet article est déjà payé.") instead of failing silently.
   Future<void> _guard(BuildContext context, Future<void> Function() action) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -206,15 +274,40 @@ class TicketPanel extends ConsumerWidget {
     final request = await showPaymentDialog(context, remaining: ticket.remaining, unpaidLines: ticket.unpaidLines);
     if (request == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
+    final orderId = ticket.order?.id;
+    final printer = ref.read(printActionsProvider);
+    final settings = ref.read(printerSettingsProvider).value ?? PrinterSettings.none;
+    final canPrint = ref.read(canPrintProvider);
     try {
       final r = await vm.pay(request);
       final how = request.method == 'card' ? 'par carte' : 'Rendu ${r.change}';
+      // Customer receipt: printed automatically when set so (⋮ → Imprimantes), else on demand.
+      var printNote = '';
+      if (r.closed && orderId != null && canPrint && settings.autoReceipt) {
+        try {
+          await printer.printReceipt(orderId);
+          printNote = ' · ticket imprimé';
+        } on PrintException catch (e) {
+          printNote = ' · ${e.message}';
+        } on OrderException catch (e) {
+          printNote = ' · ${e.message}';
+        }
+      }
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            r.closed ? 'Payé ✅  Ticket ${r.receiptNumber} · $how' : 'Reçu ${r.amount} · $how · Reste ${r.remaining}',
+            r.closed
+                ? 'Payé ✅  Ticket ${r.receiptNumber} · $how$printNote'
+                : 'Reçu ${r.amount} · $how · Reste ${r.remaining}',
           ),
           duration: const Duration(seconds: 6),
+          action:
+              r.closed && orderId != null && canPrint
+                  ? SnackBarAction(
+                    label: printNote == ' · ticket imprimé' ? 'Réimprimer' : 'Imprimer le ticket',
+                    onPressed: () => printer.printReceipt(orderId).catchError((_) {}),
+                  )
+                  : null,
         ),
       );
     } on OrderException catch (e) {

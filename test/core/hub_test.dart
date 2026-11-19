@@ -10,10 +10,13 @@ import 'package:pos_cafe/core/lan/hub_server.dart';
 import 'package:pos_cafe/core/lan/lan_auth.dart';
 import 'package:pos_cafe/core/lan/lan_info.dart';
 import 'package:pos_cafe/core/money/money.dart';
+import 'package:pos_cafe/core/print/printers.dart';
+import 'package:pos_cafe/features/print/print_service.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
 
+import '../fake_printer.dart';
 import '../fakes.dart';
 
 DeviceIdentity device(String id, String code, String role) =>
@@ -29,6 +32,7 @@ void main() {
   late AppDatabase hubDb, tabletDb, terraceDb;
   late OutboxRepository hubOutbox;
   late HubServer server;
+  late FakePrinter hubPrinter;
   late LanInfo info;
   final clients = <HubClient>[];
 
@@ -81,7 +85,15 @@ void main() {
     tabletDb = await seeded();
     terraceDb = await seeded();
     hubOutbox = OutboxRepository(hubDb);
-    server = HubServer(db: hubDb, outbox: hubOutbox, identity: hubId, lanInfo: () async => info, port: 0);
+    hubPrinter = FakePrinter();
+    server = HubServer(
+      db: hubDb,
+      outbox: hubOutbox,
+      identity: hubId,
+      lanInfo: () async => info,
+      port: 0,
+      printer: hubPrinter,
+    );
     await server.start();
     info = lan();
   });
@@ -298,6 +310,39 @@ void main() {
     await b.stop();
     await expectLater(starting, throwsStateError);
   });
+
+  test(
+    'printing: a tablet sends the order to the bar printer and asks for the bill → printed at the counter',
+    () async {
+      await PrintService(
+        hubDb,
+        hubOutbox,
+      ).saveSettings(const PrinterSettings(receipt: PrinterConfig(host: '10.0.0.9')));
+      final c = await connect(tablet, tabletDb);
+      await eventually(() async => c.link.connected);
+      final orders = HubOrderActions(c, staffId: () => 'staff-ahmed');
+      await orders.addProduct(await express(tabletDb), table: await table(tabletDb, 'table-2'));
+      final orderId = (await hubOrderAt('table-2'))!.id;
+
+      final sent = await HubPrintActions(c, staffId: () => 'staff-ahmed').sendOrder(orderId);
+      expect(sent.printed, {'bar': 1});
+      expect(hubPrinter.texts.single, contains('TABLE 2'));
+      expect(hubPrinter.texts.single, contains('Ahmed'));
+      // The tablet's copy shows the line as sent (✓) once the Hub broadcasts.
+      await eventually(() async => (await tabletDb.select(tabletDb.orderLines).getSingleOrNull())?.sentAt != null);
+
+      await orders.requestBill(orderId);
+      expect(hubPrinter.texts.last, contains('ADDITION'));
+
+      // No printer on the Hub → the tablet gets the reason.
+      await PrintService(hubDb, hubOutbox).saveSettings(PrinterSettings.none);
+      await orders.addProduct(await express(tabletDb), table: await table(tabletDb, 'table-2'));
+      await expectLater(
+        HubPrintActions(c, staffId: () => 'staff-ahmed').sendOrder(orderId),
+        throwsA(isA<OrderException>().having((e) => e.message, 'm', contains('Aucune imprimante'))),
+      );
+    },
+  );
 
   test('LAN signatures: right key and time pass; wrong key, changed body or old timestamp fail', () async {
     final now = DateTime.utc(2026, 11, 18, 10);
