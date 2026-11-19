@@ -63,6 +63,11 @@ void main() {
           'names': ['1', '2', '3', '4'],
         },
       );
+      final riadh =
+          (await owner.post(
+            '/v1/owner/branches/$branch/staff',
+            data: {'name': 'Riadh', 'role': 'cashier', 'pin': '2580'},
+          )).data;
       final code = (await owner.post('/v1/owner/branches/$branch/pairing-codes', data: {'role': 'hub'})).data['code'];
 
       // ── POS (real Flutter code) ──
@@ -79,7 +84,8 @@ void main() {
       expect((await db.select(db.floorAreas).getSingle()).name, 'Salle');
       final products = {for (final p in await db.select(db.products).get()) p.name: p};
       final orders = OrderRepository(db, outbox);
-      await CashRepository(db, outbox, drawerId: identity.deviceId).open(const Money.dt(50));
+      final cash = CashRepository(db, outbox, drawerId: identity.deviceId, staffId: () => riadh['id'] as String);
+      await cash.open(const Money.dt(50));
 
       // Table 2: 2 Express + Jus = 6.400, customers move to table 3, pay half cash, half card.
       await orders.addProduct(products['Express']!, table: tables['2']);
@@ -110,6 +116,10 @@ void main() {
         drawerId: identity.deviceId,
       );
 
+      // Evening: the cashier counts the drawer (50 float + 3.200 + 1.200 cash) and closes it, 0.500 short.
+      final closing = await cash.close(counted: const Money(53900));
+      expect(closing.difference, const Money(-500));
+
       final pushed = await engine.pushPending();
       // ignore: avoid_print
       print(
@@ -132,6 +142,21 @@ void main() {
       // ignore: avoid_print
       print('Summary: revenue ${summary['revenue']}, by method ${summary['byPaymentMethod']}');
       expect(summary['revenue'], 7600);
+
+      // ── Clôtures: the owner sees the drawer's day ──
+      final sessions = (await owner.get('/v1/owner/branches/$branch/cash-sessions')).data as List;
+      // ignore: avoid_print
+      print(
+        'Clôture: ${sessions.map((x) => 'float ${x['openingFloat']} cash ${x['cashSales']} card ${x['cardSales']} expected ${x['expectedCash']} counted ${x['countedCash']} gap ${x['difference']} by ${x['closedBy']}')}',
+      );
+      expect(sessions.single, containsPair('status', 'closed'));
+      expect(sessions.single, containsPair('openingFloat', 50000));
+      expect(sessions.single, containsPair('cashSales', 4400));
+      expect(sessions.single, containsPair('cardSales', 3200));
+      expect(sessions.single, containsPair('expectedCash', 54400));
+      expect(sessions.single, containsPair('difference', -500));
+      expect(sessions.single, containsPair('closedBy', 'Riadh'));
+      expect(sessions.single['drawer'], containsPair('code', identity.deviceCode));
 
       expect(pushed.rejected, 0);
       await db.close();
