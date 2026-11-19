@@ -13,7 +13,12 @@ import 'staff_login_helper.dart';
 
 /// What a server tablet and the main POS show, in the real UI.
 void main() {
-  Future<(AppDatabase, FakePosApi)> start(WidgetTester tester, {required String role, bool canPay = false}) async {
+  Future<(AppDatabase, FakePosApi)> start(
+    WidgetTester tester, {
+    required String role,
+    bool canPay = false,
+    bool replaced = false,
+  }) async {
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -35,6 +40,28 @@ void main() {
         {'id': 'dev-2', 'code': 'T2', 'name': 'Tablette', 'role': 'pos', 'canTakePayments': canPay, 'disabled': false},
       ],
     };
+    if (replaced) {
+      api.lan = {
+        'lanKey': 'k',
+        'hub': {
+          'deviceId': 'hub-9',
+          'code': 'T9',
+          'addresses': ['10.255.255.1'],
+          'port': 7799,
+        },
+        'devices': [
+          {'id': 'hub-1', 'code': 'T1', 'name': 'Ancien PC', 'role': 'pos', 'canTakePayments': true, 'disabled': false},
+          {
+            'id': 'hub-9',
+            'code': 'T9',
+            'name': 'Nouveau PC',
+            'role': 'hub',
+            'canTakePayments': true,
+            'disabled': false,
+          },
+        ],
+      };
+    }
     await secrets.write(SecretKeys.deviceToken, 'token');
     final id = role == 'hub' ? 'hub-1' : 'dev-2';
     await tester.runAsync(
@@ -74,6 +101,8 @@ void main() {
 
     expect(find.byKey(const Key('hub-banner')), findsOneWidget);
     expect(find.byKey(const Key('hub-link-chip')), findsOneWidget);
+    expect(find.text('T1 injoignable'), findsOneWidget);
+    expect(find.byKey(const Key('role-badge-secondaire')), findsOneWidget);
     expect(find.byKey(const Key('counter-tile')), findsNothing);
 
     await tester.tap(find.byKey(const Key('table-table-1')));
@@ -97,11 +126,21 @@ void main() {
     await end(tester, db);
   });
 
-  testWidgets('main POS (Hub): "Hub · 0 tablette" chip, counter and pay button, no warning', (tester) async {
+  testWidgets('main POS: PRINCIPALE badge, "Aucune tablette connectée", counter, no warning', (tester) async {
     final (db, _) = await start(tester, role: 'hub');
-    expect(find.text('Hub · 0 tablette'), findsOneWidget);
+    expect(find.text('Aucune tablette connectée'), findsOneWidget);
+    expect(find.byKey(const Key('role-badge-principale')), findsOneWidget);
     expect(find.byKey(const Key('hub-banner')), findsNothing);
     expect(find.byKey(const Key('counter-tile')), findsOneWidget);
+    await end(tester, db);
+  });
+
+  testWidgets('old main POS replaced by a new one → shows SECONDAIRE and connects to the new one (T9)', (tester) async {
+    final (db, _) = await start(tester, role: 'hub', replaced: true);
+    expect(find.byKey(const Key('role-badge-secondaire')), findsOneWidget);
+    expect(find.byKey(const Key('role-badge-principale')), findsNothing);
+    expect(find.text('T9 injoignable'), findsOneWidget);
+    expect(find.byKey(const Key('hub-chip')), findsNothing);
     await end(tester, db);
   });
 }

@@ -31,10 +31,17 @@ enum PosMode { standalone, hub, tablet }
 final posModeProvider = Provider<PosMode>((ref) {
   final identity = ref.watch(deviceIdentityProvider).value;
   if (identity == null) return PosMode.standalone;
-  if (identity.isHub) return PosMode.hub;
-  final hub = ref.watch(lanInfoProvider).value?.hub;
+  final lan = ref.watch(lanInfoProvider).value;
+  // The cloud has the last word: when the owner pairs a new main POS, the old one
+  // becomes a secondary POS at its next sync (its pairing said "hub").
+  final role = lan?.device(identity.deviceId)?.role ?? identity.role;
+  if (role == 'hub') return PosMode.hub;
+  final hub = lan?.hub;
   return hub != null && hub.deviceId != identity.deviceId ? PosMode.tablet : PosMode.standalone;
 });
+
+/// Code of the main POS ("T1"), for "Reliée à T1".
+final hubCodeProvider = Provider<String?>((ref) => ref.watch(lanInfoProvider).value?.hub?.code);
 
 /// Server tablets take payments only if the owner allowed it (Caisses page).
 final canTakePaymentsProvider = Provider<bool>((ref) {

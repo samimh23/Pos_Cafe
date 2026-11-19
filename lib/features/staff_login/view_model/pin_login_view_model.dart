@@ -13,14 +13,19 @@ class PinLoginState {
 
   const PinLoginState({this.selected, this.pin = '', this.checking = false, this.error, this.lockedUntil});
 
-  PinLoginState copyWith({String? pin, bool? checking, String? error, DateTime? lockedUntil, bool clearError = false}) =>
-      PinLoginState(
-        selected: selected,
-        pin: pin ?? this.pin,
-        checking: checking ?? this.checking,
-        error: clearError ? null : (error ?? this.error),
-        lockedUntil: lockedUntil ?? this.lockedUntil,
-      );
+  PinLoginState copyWith({
+    String? pin,
+    bool? checking,
+    String? error,
+    DateTime? lockedUntil,
+    bool clearError = false,
+  }) => PinLoginState(
+    selected: selected,
+    pin: pin ?? this.pin,
+    checking: checking ?? this.checking,
+    error: clearError ? null : (error ?? this.error),
+    lockedUntil: lockedUntil ?? this.lockedUntil,
+  );
 }
 
 /// ViewModel of the login screen: pick a person, type the PIN, check it offline.

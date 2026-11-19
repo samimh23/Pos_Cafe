@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/app_database.dart';
 import '../../../core/device/device_repository.dart';
+import '../../../core/lan/hub_widgets.dart';
 import '../../../core/sync/sync_controller.dart';
 import '../view_model/pin_login_view_model.dart';
 import '../view_model/staff_session.dart';
@@ -21,7 +22,7 @@ class StaffLoginScreen extends ConsumerWidget {
     final staff = ref.watch(staffListProvider).value;
 
     return Scaffold(
-      appBar: AppBar(title: Text('${identity.name} · ${identity.deviceCode}')),
+      appBar: AppBar(title: PosTitle(name: identity.name, code: identity.deviceCode)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
@@ -178,13 +179,14 @@ class _PinPad extends ConsumerWidget {
           ),
           SizedBox(
             height: 28,
-            child: state.error != null
-                ? Text(
-                    state.error!,
-                    key: const Key('pin-error'),
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  )
-                : null,
+            child:
+                state.error != null
+                    ? Text(
+                      state.error!,
+                      key: const Key('pin-error'),
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    )
+                    : null,
           ),
           for (final row in const [
             ['1', '2', '3'],
@@ -220,9 +222,10 @@ class _PinPad extends ConsumerWidget {
                   child: FilledButton(
                     key: const Key('pin-ok'),
                     onPressed: locked || state.checking ? null : vm.submit,
-                    child: state.checking
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('OK'),
+                    child:
+                        state.checking
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('OK'),
                   ),
                 ),
               ),

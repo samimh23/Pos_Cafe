@@ -39,7 +39,7 @@ class HomeScreen extends ConsumerWidget {
                   onPressed: () => ref.read(ticketTargetProvider.notifier).backToFloor(),
                 )
                 : null,
-        title: Text('${identity.name} · ${identity.deviceCode}${identity.isHub ? ' (Hub)' : ''}'),
+        title: PosTitle(name: identity.name, code: identity.deviceCode),
         actions: const [PosAppBarActions()],
       ),
       body: const Column(

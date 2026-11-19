@@ -41,7 +41,7 @@ class FloorScreen extends ConsumerWidget {
       length: sections.length,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('${identity.name} · ${identity.deviceCode}'),
+          title: PosTitle(name: identity.name, code: identity.deviceCode),
           actions: const [PosAppBarActions()],
           bottom:
               sections.length > 1

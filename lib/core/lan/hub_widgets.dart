@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'hub_client.dart';
 import 'lan_providers.dart';
 
-/// App bar chip: "Hub · 2 tablettes" on the main POS, "Caisse principale ✓/✗" on a tablet.
+/// App bar chip — says plainly what this POS is connected to:
+/// main POS: "2 tablettes connectées"; secondary POS: "Reliée à T1" / "T1 injoignable".
 class HubStatusChip extends ConsumerWidget {
   const HubStatusChip({super.key});
 
@@ -16,17 +17,23 @@ class HubStatusChip extends ConsumerWidget {
       case PosMode.hub:
         final n = ref.watch(hubTabletsProvider).value ?? 0;
         return Tooltip(
-          message: 'Caisse principale : les tablettes des serveurs se connectent à elle par le Wi-Fi.',
+          message: 'Les caisses secondaires (tablettes des serveurs) se connectent à celle-ci par le Wi-Fi.',
           child: Chip(
             key: const Key('hub-chip'),
-            avatar: const Icon(Icons.hub_outlined, size: 18),
-            label: Text('Hub · $n tablette${n > 1 ? 's' : ''}'),
+            avatar: const Icon(Icons.tablet_android_outlined, size: 18),
+            label: Text(
+              n == 0 ? 'Aucune tablette connectée' : '$n tablette${n > 1 ? 's' : ''} connectée${n > 1 ? 's' : ''}',
+            ),
           ),
         );
       case PosMode.tablet:
         final link = ref.watch(hubLinkProvider).value ?? const HubLink(HubLinkState.connecting);
+        final hub = ref.watch(hubCodeProvider) ?? 'la caisse principale';
         return Tooltip(
-          message: link.connected ? 'Connectée à la caisse principale (${link.address})' : (link.error ?? 'Connexion…'),
+          message:
+              link.connected
+                  ? 'Commandes envoyées à la caisse principale $hub (${link.address})'
+                  : (link.error ?? 'Connexion…'),
           child: Chip(
             key: const Key('hub-link-chip'),
             avatar: Icon(
@@ -34,11 +41,58 @@ class HubStatusChip extends ConsumerWidget {
               size: 18,
               color: link.connected ? Colors.green : Colors.red,
             ),
-            label: Text(link.connected ? 'Caisse principale' : 'Caisse principale injoignable'),
+            label: Text(link.connected ? 'Reliée à $hub' : '$hub injoignable'),
           ),
         );
     }
   }
+}
+
+/// Next to every screen title: PRINCIPALE (main POS) or SECONDAIRE (server tablet).
+/// Nothing when the café has no main POS (this POS works on its own).
+class PosRoleBadge extends ConsumerWidget {
+  const PosRoleBadge({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final (label, main) = switch (ref.watch(posModeProvider)) {
+      PosMode.hub => ('PRINCIPALE', true),
+      PosMode.tablet => ('SECONDAIRE', false),
+      PosMode.standalone => (null, false),
+    };
+    if (label == null) return const SizedBox.shrink();
+    return Container(
+      key: Key('role-badge-${label.toLowerCase()}'),
+      margin: const EdgeInsets.only(left: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: main ? scheme.primary : null,
+        border: Border.all(color: scheme.primary, width: 1.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: main ? scheme.onPrimary : scheme.primary,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+/// "Caisse terrasse · T2  [SECONDAIRE]" — the app bar title of every POS screen.
+class PosTitle extends StatelessWidget {
+  const PosTitle({super.key, required this.name, required this.code});
+  final String name, code;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [Flexible(child: Text('$name · $code', overflow: TextOverflow.ellipsis)), const PosRoleBadge()],
+  );
 }
 
 /// On a server tablet: a clear warning when the Hub can't be reached
