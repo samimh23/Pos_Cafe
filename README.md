@@ -26,6 +26,11 @@ dart run tool/virtual_printer.dart 9100 9101    # counter + bar
 Then on the main POS: ⋮ → Imprimantes → address `127.0.0.1` (or this PC's Wi-Fi address from a
 tablet), port 9100 → Tester. Tickets are also saved in `build/printed/`.
 
+**USB printers (Windows POS):** install the printer's driver in Windows (the maker's, or
+"Generic / Text Only"), then ⋮ → Imprimantes → **USB** → pick it in the list → Tester.
+Kahwti sends the ticket to the Windows print queue in RAW mode, so the printer receives exactly
+the same bytes as over the network. If the printer is off, the ticket waits in the Windows queue.
+
 ## Tests
 
 ```bash

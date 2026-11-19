@@ -8,6 +8,7 @@ import '../../features/cash/data/cash_repository.dart';
 import '../../features/order/data/order_repository.dart';
 import '../../features/print/print_service.dart';
 import '../print/printers.dart';
+import '../print/windows_printer.dart';
 import '../db/app_database.dart';
 import '../device/device_repository.dart';
 import '../menu/modifiers.dart';
@@ -28,7 +29,7 @@ class HubServer {
     required DeviceIdentity identity,
     required Future<LanInfo?> Function() lanInfo,
     int port = HubProtocol.port,
-    PrinterTransport printer = const NetworkPrinterTransport(),
+    PrinterTransport printer = const AutoPrinterTransport(),
     DateTime Function()? clock,
   }) : _db = db,
        _outbox = outbox,

@@ -2,24 +2,45 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-/// A network thermal printer: "192.168.1.50", port 9100, 80 mm (48 characters) or 58 mm (32).
+/// A thermal printer: on the network ("192.168.1.50", port 9100) or a USB printer
+/// installed in Windows ([windowsName]). 80 mm paper = 48 characters, 58 mm = 32.
 class PrinterConfig {
   final String host;
   final int port;
   final int width;
-  const PrinterConfig({required this.host, this.port = 9100, this.width = 48});
 
-  String get label => '$host:$port';
+  /// Set for a USB printer: its name in Windows ("XP-80C").
+  final String? windowsName;
 
-  Map<String, Object?> toJson() => {'host': host, 'port': port, 'width': width};
-  factory PrinterConfig.fromJson(Map<String, dynamic> j) =>
-      PrinterConfig(host: j['host'] as String, port: (j['port'] as int?) ?? 9100, width: (j['width'] as int?) ?? 48);
+  const PrinterConfig({this.host = '', this.port = 9100, this.width = 48, this.windowsName});
+  const PrinterConfig.windows(String name, {this.width = 48}) : host = '', port = 9100, windowsName = name;
+
+  bool get isWindows => windowsName != null;
+
+  String get label => isWindows ? 'USB « $windowsName »' : '$host:$port';
+
+  Map<String, Object?> toJson() => {
+    'host': host,
+    'port': port,
+    'width': width,
+    if (windowsName != null) 'windowsName': windowsName,
+  };
+  factory PrinterConfig.fromJson(Map<String, dynamic> j) => PrinterConfig(
+    host: (j['host'] as String?) ?? '',
+    port: (j['port'] as int?) ?? 9100,
+    width: (j['width'] as int?) ?? 48,
+    windowsName: j['windowsName'] as String?,
+  );
 
   @override
   bool operator ==(Object other) =>
-      other is PrinterConfig && other.host == host && other.port == port && other.width == width;
+      other is PrinterConfig &&
+      other.host == host &&
+      other.port == port &&
+      other.width == width &&
+      other.windowsName == windowsName;
   @override
-  int get hashCode => Object.hash(host, port, width);
+  int get hashCode => Object.hash(host, port, width, windowsName);
 }
 
 /// Which printer prints what, on this POS (set on the main POS: ⋮ → Imprimantes).

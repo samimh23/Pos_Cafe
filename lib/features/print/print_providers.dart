@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/lan/hub_client.dart';
 import '../../core/lan/lan_providers.dart';
 import '../../core/print/printers.dart';
+import '../../core/print/windows_printer.dart';
 import '../../core/providers.dart';
 import '../staff_login/view_model/staff_session.dart';
 import 'print_service.dart';
 
-/// How bytes reach printers (network). Tests replace it to capture what would print.
-final printerTransportProvider = Provider<PrinterTransport>((ref) => const NetworkPrinterTransport());
+/// How bytes reach printers (network or Windows USB). Tests replace it to capture what would print.
+final printerTransportProvider = Provider<PrinterTransport>((ref) => const AutoPrinterTransport());
 
 /// Prints on THIS POS's printers.
 final printServiceProvider = Provider<PrintService>(

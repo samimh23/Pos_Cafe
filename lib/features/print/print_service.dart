@@ -7,6 +7,7 @@ import '../../core/money/order_totals.dart';
 import '../../core/print/business_info.dart';
 import '../../core/print/documents.dart';
 import '../../core/print/printers.dart';
+import '../../core/print/windows_printer.dart';
 import '../../core/sync/outbox_repository.dart';
 import '../../core/sync/sync_event_types.dart';
 import '../cash/data/cash_repository.dart';
@@ -44,7 +45,7 @@ class PrintService implements PrintActions {
   PrintService(
     this._db,
     this._outbox, {
-    PrinterTransport transport = const NetworkPrinterTransport(),
+    PrinterTransport transport = const AutoPrinterTransport(),
     String? Function()? staffId,
     DateTime Function()? clock,
   }) : _transport = transport,
