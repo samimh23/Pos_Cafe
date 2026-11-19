@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Waits for the staff list to sync, taps Ahmed, types 1234 and presses OK.
-Future<void> loginAsAhmed(WidgetTester tester, {String pin = '1234'}) async {
-  final tile = find.byKey(const Key('staff-staff-ahmed'));
+Future<void> loginAsAhmed(WidgetTester tester, {String pin = '1234'}) => loginAs(tester, 'staff-ahmed', pin: pin);
+
+/// Same for any staff member of the fake server (they all use PIN 1234 in tests).
+Future<void> loginAs(WidgetTester tester, String staffId, {String pin = '1234'}) async {
+  final tile = find.byKey(Key('staff-$staffId'));
   for (var i = 0; i < 40 && tile.evaluate().isEmpty; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }

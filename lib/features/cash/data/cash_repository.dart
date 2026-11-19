@@ -55,6 +55,9 @@ class CashSummary {
   /// Discounts and free items on the tickets paid into this drawer.
   final Money discounts;
 
+  /// Refunds paid out of this drawer (cash and card), as a positive amount.
+  final Money refunds;
+
   /// Tickets still open in the café (the main POS can't close while some are).
   final int openTickets;
   final List<CashMovementView> movements;
@@ -70,6 +73,7 @@ class CashSummary {
     required this.cashOut,
     required this.ticketCount,
     this.discounts = Money.zero,
+    this.refunds = Money.zero,
     required this.openTickets,
     required this.movements,
   });
@@ -88,6 +92,7 @@ class CashSummary {
     'cashOut': cashOut.millimes,
     'ticketCount': ticketCount,
     'discounts': discounts.millimes,
+    'refunds': refunds.millimes,
     'openTickets': openTickets,
     'movements': [for (final m in movements) m.toJson()],
   };
@@ -103,6 +108,7 @@ class CashSummary {
     cashOut: Money(j['cashOut'] as int),
     ticketCount: j['ticketCount'] as int,
     discounts: Money((j['discounts'] as int?) ?? 0),
+    refunds: Money((j['refunds'] as int?) ?? 0),
     openTickets: j['openTickets'] as int,
     movements: [
       for (final m in (j['movements'] as List? ?? const []))
@@ -332,6 +338,7 @@ class CashRepository implements CashActions {
           SELECT
             COALESCE(SUM(CASE WHEN method = 'cash' THEN amount END), 0) AS cash,
             COALESCE(SUM(CASE WHEN method = 'card' THEN amount END), 0) AS card,
+            COALESCE(SUM(CASE WHEN amount < 0 THEN -amount END), 0) AS refunds,
             (SELECT COUNT(*) FROM orders o WHERE o.status = 'paid' AND o.id IN
                (SELECT p2.order_id FROM payments p2 WHERE p2.drawer_id = ?1 AND p2.created_at >= ?2)) AS tickets,
             (SELECT COUNT(*) FROM orders o WHERE o.status = 'open') AS open_tickets
@@ -362,8 +369,7 @@ class CashRepository implements CashActions {
         paidHere.isEmpty
             ? <OrderLineRow>[]
             : await (_db.select(_db.orderLines)
-                  ..where((l) => l.orderId.isIn(paidHere) & l.voided.equals(false) & l.discountType.isNotNull()))
-                .get();
+              ..where((l) => l.orderId.isIn(paidHere) & l.voided.equals(false) & l.discountType.isNotNull())).get();
     final discounts = discountLines.fold(Money.zero, (sum, l) => sum + lineDiscount(amountsOf(l)));
     Money sum(String type) => moves.where((m) => m.type == type).fold(Money.zero, (acc, m) => acc + Money(m.amount));
     return CashSummary(
@@ -377,6 +383,7 @@ class CashRepository implements CashActions {
       cashOut: sum('out'),
       ticketCount: totals.read<int>('tickets'),
       discounts: discounts,
+      refunds: Money(totals.read<int>('refunds')),
       openTickets: totals.read<int>('open_tickets'),
       movements: [
         for (final m in moves)

@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Bump when tables change, and add the upgrade step below.
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -78,6 +78,10 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(orderLines, orderLines.discountValue);
         await m.addColumn(orderLines, orderLines.discountReason);
         await m.addColumn(orderLines, orderLines.discountApprovedBy);
+      }
+      if (from < 10 && from >= 2) {
+        // v10: refunds of paid tickets
+        await m.addColumn(orders, orders.refundedAt);
       }
     },
   );

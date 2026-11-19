@@ -463,6 +463,74 @@ class OrderRepository implements OrderActions {
     throw const OrderException('Validation d’un gérant requise.');
   }
 
+  // ── Refunds ───────────────────────────────────────────────
+
+  /// Refunds a paid ticket in full: a manager and a reason, the money goes out of
+  /// the open drawer [drawerId] (same methods as paid: cash back in cash, card on the
+  /// card terminal). The ticket keeps its receipt number and becomes "refunded".
+  Future<List<PaymentRow>> refund(String orderId, {required Approval approval, required String drawerId}) =>
+      _db.transaction(() async {
+        final order = await (_db.select(_db.orders)..where((o) => o.id.equals(orderId))).getSingleOrNull();
+        if (order == null || order.status != 'paid') {
+          throw const OrderException('Seul un ticket payé peut être remboursé.');
+        }
+        final approver = await _approve(approval);
+        final drawerOpen =
+            await (_db.select(_db.cashSessions)
+                  ..where((t) => t.drawerId.equals(drawerId) & t.status.equals('open'))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (drawerOpen == null) throw const OrderException('Caisse fermée : ouvrez la caisse avant de rembourser.');
+
+        // Net paid per method (a ticket paid half cash, half card is refunded the same way).
+        final paid = await (_db.select(_db.payments)..where((p) => p.orderId.equals(orderId))).get();
+        final byMethod = <String, int>{};
+        for (final p in paid) {
+          byMethod[p.method] = (byMethod[p.method] ?? 0) + p.amount;
+        }
+        final now = _now();
+        final refunds = <PaymentRow>[];
+        for (final e in byMethod.entries.where((e) => e.value > 0)) {
+          final row = PaymentRow(
+            id: newId(),
+            orderId: orderId,
+            method: e.key,
+            amount: -e.value,
+            tendered: 0,
+            changeGiven: 0,
+            createdAt: now,
+            drawerId: drawerId,
+          );
+          await _db.into(_db.payments).insert(row);
+          refunds.add(row);
+        }
+        await (_db.update(_db.orders)..where(
+          (o) => o.id.equals(orderId),
+        )).write(OrdersCompanion(status: const Value('refunded'), refundedAt: Value(now)));
+        await _outbox.record(
+          staffId: _staffId(),
+          approvedBy: approver,
+          type: EventTypes.orderRefunded,
+          entityId: orderId,
+          payload: {
+            'reason': approval.reason,
+            'receiptNumber': order.receiptNumber,
+            'payments': [
+              for (final r in refunds)
+                {'paymentId': r.id, 'method': r.method, 'amount': r.amount, 'drawerId': drawerId},
+            ],
+          },
+        );
+        return refunds;
+      });
+
+  /// Paid and refunded tickets closed since [since] (the "Tickets du jour" screen), newest first.
+  Stream<List<OrderRow>> watchClosedTickets(DateTime since) =>
+      (_db.select(_db.orders)
+            ..where((o) => o.status.isIn(['paid', 'refunded']) & o.closedAt.isBiggerOrEqualValue(since))
+            ..orderBy([(o) => OrderingTerm.desc(o.closedAt)]))
+          .watch();
+
   /// "Demander l'addition": marks the ticket so the cashier sees it on the Hub.
   @override
   Future<void> requestBill(String orderId) => _db.transaction(() async {

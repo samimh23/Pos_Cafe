@@ -9,6 +9,7 @@ import '../../../core/money/money.dart';
 import '../../../core/sync/sync_controller.dart';
 import '../../../core/lan/hub_widgets.dart';
 import '../../cash/view/cash_screen.dart';
+import '../../order/view/tickets_screen.dart';
 import '../../print/view/printers_screen.dart';
 import '../../../core/lan/lan_providers.dart';
 import '../../floor/view_model/floor_view_model.dart';
@@ -92,6 +93,7 @@ class PosAppBarActions extends ConsumerWidget {
           tooltip: 'Menu',
           onSelected:
               (v) => switch (v) {
+                'tickets' => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TicketsScreen())),
                 'printers' => Navigator.of(
                   context,
                 ).push(MaterialPageRoute<void>(builder: (_) => const PrintersScreen())),
@@ -102,8 +104,10 @@ class PosAppBarActions extends ConsumerWidget {
           itemBuilder:
               (_) => [
                 // Tablets print on the main POS's printers: nothing to set there.
-                if (ref.read(posModeProvider) != PosMode.tablet)
-                  const PopupMenuItem(value: 'printers', child: Text('Imprimantes')),
+                if (ref.read(posModeProvider) != PosMode.tablet) ...const [
+                  PopupMenuItem(value: 'tickets', child: Text('Tickets du jour')),
+                  PopupMenuItem(value: 'printers', child: Text('Imprimantes')),
+                ],
                 if (kDebugMode) ...const [
                   PopupMenuItem(value: 'event', child: Text('Créer un événement test')),
                   PopupMenuItem(value: 'forget', child: Text('Dissocier cette caisse')),

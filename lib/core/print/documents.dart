@@ -206,6 +206,42 @@ Uint8List stationDocument({
   return p.bytes();
 }
 
+/// Refund slip: what was given back, for which receipt, why.
+Uint8List refundDocument({
+  required int width,
+  required BusinessInfo? business,
+  required String receiptNumber,
+  required DateTime at,
+  String? staff,
+  String? approvedBy,
+  required String reason,
+  required List<PrintLine> lines,
+  required List<PrintPayment> refunds,
+}) {
+  final p = EscPos(width: width);
+  _header(p, business);
+  p
+    ..bold()
+    ..big()
+    ..text('REMBOURSEMENT', at: EscPos.center, isBig: true)
+    ..big(false)
+    ..bold(false)
+    ..row('Ticket $receiptNumber', _date(at))
+    ..text('Motif : $reason');
+  if (staff != null) p.text('Par $staff${approvedBy == null ? '' : ', validé par $approvedBy'}');
+  p.separator();
+  _lines(p, lines);
+  p.separator();
+  for (final r in refunds) {
+    p
+      ..bold()
+      ..row(r.method == 'card' ? 'Rendu par carte' : 'Rendu en espèces', r.amount.toDecimalString())
+      ..bold(false);
+  }
+  p.cut();
+  return p.bytes();
+}
+
 /// The closing report ("Z") of a cash drawer.
 Uint8List cashReportDocument({
   required int width,
@@ -224,6 +260,7 @@ Uint8List cashReportDocument({
   required Money cardSales,
   required int tickets,
   Money discounts = Money.zero,
+  Money refunds = Money.zero,
   String? note,
 }) {
   final p = EscPos(width: width);
@@ -249,7 +286,8 @@ Uint8List cashReportDocument({
     ..separator()
     ..row('Ventes carte (TPE)', cardSales.toDecimalString())
     ..row('Tickets encaissés', '$tickets')
-    ..row('Remises & offerts', (-discounts).toDecimalString());
+    ..row('Remises & offerts', (-discounts).toDecimalString())
+    ..row('Remboursements', (-refunds).toDecimalString());
   if (note != null) p.text('Commentaire : $note');
   p.cut();
   return p.bytes();

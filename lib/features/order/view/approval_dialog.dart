@@ -4,6 +4,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/app_database.dart';
 import '../../../core/staff/staff_repository.dart';
 import '../../staff_login/view_model/staff_session.dart';
+import '../data/discounts.dart';
+
+/// Cancelling something sent / refunding: the reason, then a manager's PIN
+/// (or the manager logged in). Null if cancelled.
+Future<Approval?> askCancelApproval(BuildContext context, WidgetRef ref, {required String what}) async {
+  final reason = await showDialog<String>(
+    context: context,
+    builder:
+        (c) => SimpleDialog(
+          title: Text(what),
+          children: [
+            for (final e in CancelReasons.labels.entries)
+              SimpleDialogOption(
+                key: Key('cancel-reason-${e.key}'),
+                onPressed: () => Navigator.pop(c, e.key),
+                child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(e.value)),
+              ),
+          ],
+        ),
+  );
+  if (reason == null || !context.mounted) return null;
+  final approver = await askManagerApproval(context, ref, what: '$what — ${CancelReasons.label(reason)}');
+  return approver == null ? null : Approval(approvedBy: approver, reason: reason);
+}
 
 /// Asks a manager to approve a sensitive action ([what]: "Offert : 2 x Express").
 /// Returns the manager's staff id, or null if cancelled. A manager logged in

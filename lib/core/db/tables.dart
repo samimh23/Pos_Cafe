@@ -100,6 +100,9 @@ class Orders extends Table {
   /// A server asked for the bill ("l'addition") from a tablet (v6).
   DateTimeColumn get billRequestedAt => dateTime().nullable()();
 
+  /// Refunded after payment (v10): status becomes "refunded"; the receipt number is kept.
+  DateTimeColumn get refundedAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

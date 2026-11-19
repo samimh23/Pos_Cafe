@@ -38,6 +38,8 @@ void main() {
     for (final c in ['discount_type', 'discount_value', 'discount_reason', 'discount_approved_by']) {
       await db.customStatement('ALTER TABLE order_lines DROP COLUMN $c');
     }
+    // v10 addition
+    await db.customStatement('ALTER TABLE orders DROP COLUMN refunded_at');
     await db.customStatement('PRAGMA user_version = 2');
     await db.close();
 

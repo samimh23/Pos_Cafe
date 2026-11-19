@@ -1837,6 +1837,17 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _refundedAtMeta = const VerificationMeta(
+    'refundedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> refundedAt = GeneratedColumn<DateTime>(
+    'refunded_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1849,6 +1860,7 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
     total,
     receiptNumber,
     billRequestedAt,
+    refundedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1929,6 +1941,12 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
         ),
       );
     }
+    if (data.containsKey('refunded_at')) {
+      context.handle(
+        _refundedAtMeta,
+        refundedAt.isAcceptableOrUnknown(data['refunded_at']!, _refundedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -1983,6 +2001,10 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, OrderRow> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}bill_requested_at'],
       ),
+      refundedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}refunded_at'],
+      ),
     );
   }
 
@@ -2017,6 +2039,9 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
 
   /// A server asked for the bill ("l'addition") from a tablet (v6).
   final DateTime? billRequestedAt;
+
+  /// Refunded after payment (v10): status becomes "refunded"; the receipt number is kept.
+  final DateTime? refundedAt;
   const OrderRow({
     required this.id,
     required this.status,
@@ -2028,6 +2053,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     required this.total,
     this.receiptNumber,
     this.billRequestedAt,
+    this.refundedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2051,6 +2077,9 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     }
     if (!nullToAbsent || billRequestedAt != null) {
       map['bill_requested_at'] = Variable<DateTime>(billRequestedAt);
+    }
+    if (!nullToAbsent || refundedAt != null) {
+      map['refunded_at'] = Variable<DateTime>(refundedAt);
     }
     return map;
   }
@@ -2082,6 +2111,10 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           billRequestedAt == null && nullToAbsent
               ? const Value.absent()
               : Value(billRequestedAt),
+      refundedAt:
+          refundedAt == null && nullToAbsent
+              ? const Value.absent()
+              : Value(refundedAt),
     );
   }
 
@@ -2101,6 +2134,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       total: serializer.fromJson<int>(json['total']),
       receiptNumber: serializer.fromJson<String?>(json['receiptNumber']),
       billRequestedAt: serializer.fromJson<DateTime?>(json['billRequestedAt']),
+      refundedAt: serializer.fromJson<DateTime?>(json['refundedAt']),
     );
   }
   @override
@@ -2117,6 +2151,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
       'total': serializer.toJson<int>(total),
       'receiptNumber': serializer.toJson<String?>(receiptNumber),
       'billRequestedAt': serializer.toJson<DateTime?>(billRequestedAt),
+      'refundedAt': serializer.toJson<DateTime?>(refundedAt),
     };
   }
 
@@ -2131,6 +2166,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     int? total,
     Value<String?> receiptNumber = const Value.absent(),
     Value<DateTime?> billRequestedAt = const Value.absent(),
+    Value<DateTime?> refundedAt = const Value.absent(),
   }) => OrderRow(
     id: id ?? this.id,
     status: status ?? this.status,
@@ -2144,6 +2180,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
         receiptNumber.present ? receiptNumber.value : this.receiptNumber,
     billRequestedAt:
         billRequestedAt.present ? billRequestedAt.value : this.billRequestedAt,
+    refundedAt: refundedAt.present ? refundedAt.value : this.refundedAt,
   );
   OrderRow copyWithCompanion(OrdersCompanion data) {
     return OrderRow(
@@ -2164,6 +2201,8 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           data.billRequestedAt.present
               ? data.billRequestedAt.value
               : this.billRequestedAt,
+      refundedAt:
+          data.refundedAt.present ? data.refundedAt.value : this.refundedAt,
     );
   }
 
@@ -2179,7 +2218,8 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           ..write('closedAt: $closedAt, ')
           ..write('total: $total, ')
           ..write('receiptNumber: $receiptNumber, ')
-          ..write('billRequestedAt: $billRequestedAt')
+          ..write('billRequestedAt: $billRequestedAt, ')
+          ..write('refundedAt: $refundedAt')
           ..write(')'))
         .toString();
   }
@@ -2196,6 +2236,7 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
     total,
     receiptNumber,
     billRequestedAt,
+    refundedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2210,7 +2251,8 @@ class OrderRow extends DataClass implements Insertable<OrderRow> {
           other.closedAt == this.closedAt &&
           other.total == this.total &&
           other.receiptNumber == this.receiptNumber &&
-          other.billRequestedAt == this.billRequestedAt);
+          other.billRequestedAt == this.billRequestedAt &&
+          other.refundedAt == this.refundedAt);
 }
 
 class OrdersCompanion extends UpdateCompanion<OrderRow> {
@@ -2224,6 +2266,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
   final Value<int> total;
   final Value<String?> receiptNumber;
   final Value<DateTime?> billRequestedAt;
+  final Value<DateTime?> refundedAt;
   final Value<int> rowid;
   const OrdersCompanion({
     this.id = const Value.absent(),
@@ -2236,6 +2279,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     this.total = const Value.absent(),
     this.receiptNumber = const Value.absent(),
     this.billRequestedAt = const Value.absent(),
+    this.refundedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OrdersCompanion.insert({
@@ -2249,6 +2293,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     this.total = const Value.absent(),
     this.receiptNumber = const Value.absent(),
     this.billRequestedAt = const Value.absent(),
+    this.refundedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        openedAt = Value(openedAt);
@@ -2263,6 +2308,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     Expression<int>? total,
     Expression<String>? receiptNumber,
     Expression<DateTime>? billRequestedAt,
+    Expression<DateTime>? refundedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2276,6 +2322,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
       if (total != null) 'total': total,
       if (receiptNumber != null) 'receipt_number': receiptNumber,
       if (billRequestedAt != null) 'bill_requested_at': billRequestedAt,
+      if (refundedAt != null) 'refunded_at': refundedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2291,6 +2338,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     Value<int>? total,
     Value<String?>? receiptNumber,
     Value<DateTime?>? billRequestedAt,
+    Value<DateTime?>? refundedAt,
     Value<int>? rowid,
   }) {
     return OrdersCompanion(
@@ -2304,6 +2352,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
       total: total ?? this.total,
       receiptNumber: receiptNumber ?? this.receiptNumber,
       billRequestedAt: billRequestedAt ?? this.billRequestedAt,
+      refundedAt: refundedAt ?? this.refundedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2341,6 +2390,9 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
     if (billRequestedAt.present) {
       map['bill_requested_at'] = Variable<DateTime>(billRequestedAt.value);
     }
+    if (refundedAt.present) {
+      map['refunded_at'] = Variable<DateTime>(refundedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2360,6 +2412,7 @@ class OrdersCompanion extends UpdateCompanion<OrderRow> {
           ..write('total: $total, ')
           ..write('receiptNumber: $receiptNumber, ')
           ..write('billRequestedAt: $billRequestedAt, ')
+          ..write('refundedAt: $refundedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7031,6 +7084,7 @@ typedef $$OrdersTableCreateCompanionBuilder =
       Value<int> total,
       Value<String?> receiptNumber,
       Value<DateTime?> billRequestedAt,
+      Value<DateTime?> refundedAt,
       Value<int> rowid,
     });
 typedef $$OrdersTableUpdateCompanionBuilder =
@@ -7045,6 +7099,7 @@ typedef $$OrdersTableUpdateCompanionBuilder =
       Value<int> total,
       Value<String?> receiptNumber,
       Value<DateTime?> billRequestedAt,
+      Value<DateTime?> refundedAt,
       Value<int> rowid,
     });
 
@@ -7104,6 +7159,11 @@ class $$OrdersTableFilterComposer
 
   ColumnFilters<DateTime> get billRequestedAt => $composableBuilder(
     column: $table.billRequestedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get refundedAt => $composableBuilder(
+    column: $table.refundedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7166,6 +7226,11 @@ class $$OrdersTableOrderingComposer
     column: $table.billRequestedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get refundedAt => $composableBuilder(
+    column: $table.refundedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OrdersTableAnnotationComposer
@@ -7212,6 +7277,11 @@ class $$OrdersTableAnnotationComposer
     column: $table.billRequestedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get refundedAt => $composableBuilder(
+    column: $table.refundedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$OrdersTableTableManager
@@ -7252,6 +7322,7 @@ class $$OrdersTableTableManager
                 Value<int> total = const Value.absent(),
                 Value<String?> receiptNumber = const Value.absent(),
                 Value<DateTime?> billRequestedAt = const Value.absent(),
+                Value<DateTime?> refundedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrdersCompanion(
                 id: id,
@@ -7264,6 +7335,7 @@ class $$OrdersTableTableManager
                 total: total,
                 receiptNumber: receiptNumber,
                 billRequestedAt: billRequestedAt,
+                refundedAt: refundedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7278,6 +7350,7 @@ class $$OrdersTableTableManager
                 Value<int> total = const Value.absent(),
                 Value<String?> receiptNumber = const Value.absent(),
                 Value<DateTime?> billRequestedAt = const Value.absent(),
+                Value<DateTime?> refundedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OrdersCompanion.insert(
                 id: id,
@@ -7290,6 +7363,7 @@ class $$OrdersTableTableManager
                 total: total,
                 receiptNumber: receiptNumber,
                 billRequestedAt: billRequestedAt,
+                refundedAt: refundedAt,
                 rowid: rowid,
               ),
           withReferenceMapper:

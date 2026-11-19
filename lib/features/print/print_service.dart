@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../core/db/app_database.dart';
@@ -261,6 +263,41 @@ class PrintService implements PrintActions {
     );
   }
 
+  /// The refund slip of a refunded ticket.
+  Future<void> printRefund(String orderId) async {
+    final printer = await _receiptPrinter();
+    final order = await _order(orderId);
+    if (order.status != 'refunded') throw const PrintException('Ce ticket n’a pas été remboursé.');
+    final lines = await _lines(orderId);
+    final refunds =
+        await (_db.select(_db.payments)
+          ..where((p) => p.orderId.equals(orderId) & p.amount.isSmallerThanValue(0))).get();
+    final event =
+        await (_db.select(_db.outboxEvents)
+              ..where((e) => e.entityId.equals(orderId) & e.type.equals(EventTypes.orderRefunded))
+              ..limit(1))
+            .getSingleOrNull();
+    final reason = event == null ? '' : CancelReasons.label(jsonDecode(event.payloadJson)['reason'] as String?);
+    final names = {for (final s in await _db.select(_db.staffMembers).get()) s.id: s.name};
+    await _transport.send(
+      printer,
+      refundDocument(
+        width: printer.width,
+        business: await _business(),
+        receiptNumber: order.receiptNumber ?? '',
+        at: order.refundedAt ?? _now(),
+        staff: names[event?.staffId] ?? await _staffName(),
+        approvedBy: names[event?.approvedBy],
+        reason: reason,
+        lines: [for (final l in lines) _line(l)],
+        refunds: [
+          for (final r in refunds)
+            PrintPayment(method: r.method, amount: Money(-r.amount), tendered: Money.zero, change: Money.zero),
+        ],
+      ),
+    );
+  }
+
   // ── Cash and test ────────────────────────────────────────
 
   Future<void> printCashReport(CashClosing c, {required String drawer}) async {
@@ -285,6 +322,7 @@ class PrintService implements PrintActions {
         cardSales: s.cardSales,
         tickets: s.ticketCount,
         discounts: s.discounts,
+        refunds: s.refunds,
         note: c.note,
       ),
     );
