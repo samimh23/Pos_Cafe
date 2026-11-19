@@ -120,7 +120,7 @@ class OrderViewModel extends Notifier<bool> {
     if (id == null) throw const OrderException('Aucune commande en cours.');
     state = true;
     try {
-      final r = await _repo.pay(id, request, deviceCode: identity.deviceCode);
+      final r = await _repo.pay(id, request, deviceCode: identity.deviceCode, drawerId: identity.deviceId);
       if (r.closed && ref.read(activeTargetProvider) is TableTarget) {
         ref.read(ticketTargetProvider.notifier).backToFloor();
       }

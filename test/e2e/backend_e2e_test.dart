@@ -17,6 +17,7 @@ import 'package:pos_cafe/core/device/secret_store.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/money/money.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
+import 'package:pos_cafe/features/cash/data/cash_repository.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
 
 void main() {
@@ -46,10 +47,15 @@ void main() {
 
       // A real order: 2 × first product + 1 × second, paid cash.
       final orders = OrderRepository(db, outbox);
+      await CashRepository(db, outbox, drawerId: identity.deviceId).open(const Money.dt(50));
       await orders.addProduct(products[0]);
       await orders.addProduct(products[0]);
       await orders.addProduct(products[1]);
-      final paid = await orders.payCounterCash(tendered: const Money.dt(50), deviceCode: identity.deviceCode);
+      final paid = await orders.payCounterCash(
+        tendered: const Money.dt(50),
+        deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
+      );
       // ignore: avoid_print
       print('paid ${paid.receiptNumber}: total ${paid.total}, change ${paid.change}');
 

@@ -20,6 +20,7 @@ import 'package:pos_cafe/core/menu/modifiers.dart';
 import 'package:pos_cafe/core/money/money.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
+import 'package:pos_cafe/features/cash/data/cash_repository.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
 
 void main() {
@@ -75,17 +76,26 @@ void main() {
       await engine.pullMenu();
       final products = {for (final p in await db.select(db.products).get()) p.name: p};
       final orders = OrderRepository(db, outbox);
+      await CashRepository(db, outbox, drawerId: identity.deviceId).open(const Money.dt(50));
 
       // Order 1: 2 Express + Croissant → 3.900, paid with 5 DT
       await orders.addProduct(products['Express']!);
       await orders.addProduct(products['Express']!);
       await orders.addProduct(products['Croissant']!);
-      final r1 = await orders.payCounterCash(tendered: const Money.dt(5), deviceCode: identity.deviceCode);
+      final r1 = await orders.payCounterCash(
+        tendered: const Money.dt(5),
+        deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
+      );
 
       // Order 2: Cappuccino + extra shot → 4.000
       final shot = parseModifierGroups(products['Cappuccino']!.modifierGroupsJson).single.options.single;
       await orders.addProduct(products['Cappuccino']!, modifiers: [shot]);
-      final r2 = await orders.payCounterCash(tendered: const Money.dt(4), deviceCode: identity.deviceCode);
+      final r2 = await orders.payCounterCash(
+        tendered: const Money.dt(4),
+        deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
+      );
 
       // Order 3: cancelled
       await orders.addProduct(products['Express']!);

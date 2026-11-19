@@ -3263,6 +3263,17 @@ class $PaymentsTable extends Payments
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _drawerIdMeta = const VerificationMeta(
+    'drawerId',
+  );
+  @override
+  late final GeneratedColumn<String> drawerId = GeneratedColumn<String>(
+    'drawer_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3272,6 +3283,7 @@ class $PaymentsTable extends Payments
     tendered,
     changeGiven,
     createdAt,
+    drawerId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3341,6 +3353,12 @@ class $PaymentsTable extends Payments
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('drawer_id')) {
+      context.handle(
+        _drawerIdMeta,
+        drawerId.isAcceptableOrUnknown(data['drawer_id']!, _drawerIdMeta),
+      );
+    }
     return context;
   }
 
@@ -3385,6 +3403,10 @@ class $PaymentsTable extends Payments
             DriftSqlType.dateTime,
             data['${effectivePrefix}created_at'],
           )!,
+      drawerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}drawer_id'],
+      ),
     );
   }
 
@@ -3404,6 +3426,9 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
   final int tendered;
   final int changeGiven;
   final DateTime createdAt;
+
+  /// Cash drawer (device id) the money went into (v7) — for the cash session totals.
+  final String? drawerId;
   const PaymentRow({
     required this.id,
     required this.orderId,
@@ -3412,6 +3437,7 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     required this.tendered,
     required this.changeGiven,
     required this.createdAt,
+    this.drawerId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3423,6 +3449,9 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     map['tendered'] = Variable<int>(tendered);
     map['change_given'] = Variable<int>(changeGiven);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || drawerId != null) {
+      map['drawer_id'] = Variable<String>(drawerId);
+    }
     return map;
   }
 
@@ -3435,6 +3464,10 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       tendered: Value(tendered),
       changeGiven: Value(changeGiven),
       createdAt: Value(createdAt),
+      drawerId:
+          drawerId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(drawerId),
     );
   }
 
@@ -3451,6 +3484,7 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       tendered: serializer.fromJson<int>(json['tendered']),
       changeGiven: serializer.fromJson<int>(json['changeGiven']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      drawerId: serializer.fromJson<String?>(json['drawerId']),
     );
   }
   @override
@@ -3464,6 +3498,7 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       'tendered': serializer.toJson<int>(tendered),
       'changeGiven': serializer.toJson<int>(changeGiven),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'drawerId': serializer.toJson<String?>(drawerId),
     };
   }
 
@@ -3475,6 +3510,7 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     int? tendered,
     int? changeGiven,
     DateTime? createdAt,
+    Value<String?> drawerId = const Value.absent(),
   }) => PaymentRow(
     id: id ?? this.id,
     orderId: orderId ?? this.orderId,
@@ -3483,6 +3519,7 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     tendered: tendered ?? this.tendered,
     changeGiven: changeGiven ?? this.changeGiven,
     createdAt: createdAt ?? this.createdAt,
+    drawerId: drawerId.present ? drawerId.value : this.drawerId,
   );
   PaymentRow copyWithCompanion(PaymentsCompanion data) {
     return PaymentRow(
@@ -3494,6 +3531,7 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       changeGiven:
           data.changeGiven.present ? data.changeGiven.value : this.changeGiven,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      drawerId: data.drawerId.present ? data.drawerId.value : this.drawerId,
     );
   }
 
@@ -3506,7 +3544,8 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
           ..write('amount: $amount, ')
           ..write('tendered: $tendered, ')
           ..write('changeGiven: $changeGiven, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('drawerId: $drawerId')
           ..write(')'))
         .toString();
   }
@@ -3520,6 +3559,7 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     tendered,
     changeGiven,
     createdAt,
+    drawerId,
   );
   @override
   bool operator ==(Object other) =>
@@ -3531,7 +3571,8 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
           other.amount == this.amount &&
           other.tendered == this.tendered &&
           other.changeGiven == this.changeGiven &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.drawerId == this.drawerId);
 }
 
 class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
@@ -3542,6 +3583,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
   final Value<int> tendered;
   final Value<int> changeGiven;
   final Value<DateTime> createdAt;
+  final Value<String?> drawerId;
   final Value<int> rowid;
   const PaymentsCompanion({
     this.id = const Value.absent(),
@@ -3551,6 +3593,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     this.tendered = const Value.absent(),
     this.changeGiven = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.drawerId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PaymentsCompanion.insert({
@@ -3561,6 +3604,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     required int tendered,
     required int changeGiven,
     required DateTime createdAt,
+    this.drawerId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        orderId = Value(orderId),
@@ -3577,6 +3621,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     Expression<int>? tendered,
     Expression<int>? changeGiven,
     Expression<DateTime>? createdAt,
+    Expression<String>? drawerId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3587,6 +3632,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
       if (tendered != null) 'tendered': tendered,
       if (changeGiven != null) 'change_given': changeGiven,
       if (createdAt != null) 'created_at': createdAt,
+      if (drawerId != null) 'drawer_id': drawerId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3599,6 +3645,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     Value<int>? tendered,
     Value<int>? changeGiven,
     Value<DateTime>? createdAt,
+    Value<String?>? drawerId,
     Value<int>? rowid,
   }) {
     return PaymentsCompanion(
@@ -3609,6 +3656,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
       tendered: tendered ?? this.tendered,
       changeGiven: changeGiven ?? this.changeGiven,
       createdAt: createdAt ?? this.createdAt,
+      drawerId: drawerId ?? this.drawerId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3637,6 +3685,9 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (drawerId.present) {
+      map['drawer_id'] = Variable<String>(drawerId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3653,6 +3704,7 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
           ..write('tendered: $tendered, ')
           ..write('changeGiven: $changeGiven, ')
           ..write('createdAt: $createdAt, ')
+          ..write('drawerId: $drawerId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4581,6 +4633,1153 @@ class DiningTablesCompanion extends UpdateCompanion<DiningTableRow> {
   }
 }
 
+class $CashSessionsTable extends CashSessions
+    with TableInfo<$CashSessionsTable, CashSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CashSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _drawerIdMeta = const VerificationMeta(
+    'drawerId',
+  );
+  @override
+  late final GeneratedColumn<String> drawerId = GeneratedColumn<String>(
+    'drawer_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('open'),
+  );
+  static const VerificationMeta _openedAtMeta = const VerificationMeta(
+    'openedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> openedAt = GeneratedColumn<DateTime>(
+    'opened_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openedByMeta = const VerificationMeta(
+    'openedBy',
+  );
+  @override
+  late final GeneratedColumn<String> openedBy = GeneratedColumn<String>(
+    'opened_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _openingFloatMeta = const VerificationMeta(
+    'openingFloat',
+  );
+  @override
+  late final GeneratedColumn<int> openingFloat = GeneratedColumn<int>(
+    'opening_float',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _closedAtMeta = const VerificationMeta(
+    'closedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> closedAt = GeneratedColumn<DateTime>(
+    'closed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _closedByMeta = const VerificationMeta(
+    'closedBy',
+  );
+  @override
+  late final GeneratedColumn<String> closedBy = GeneratedColumn<String>(
+    'closed_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _countedCashMeta = const VerificationMeta(
+    'countedCash',
+  );
+  @override
+  late final GeneratedColumn<int> countedCash = GeneratedColumn<int>(
+    'counted_cash',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expectedCashMeta = const VerificationMeta(
+    'expectedCash',
+  );
+  @override
+  late final GeneratedColumn<int> expectedCash = GeneratedColumn<int>(
+    'expected_cash',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    drawerId,
+    status,
+    openedAt,
+    openedBy,
+    openingFloat,
+    closedAt,
+    closedBy,
+    countedCash,
+    expectedCash,
+    note,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cash_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CashSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('drawer_id')) {
+      context.handle(
+        _drawerIdMeta,
+        drawerId.isAcceptableOrUnknown(data['drawer_id']!, _drawerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_drawerIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('opened_at')) {
+      context.handle(
+        _openedAtMeta,
+        openedAt.isAcceptableOrUnknown(data['opened_at']!, _openedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_openedAtMeta);
+    }
+    if (data.containsKey('opened_by')) {
+      context.handle(
+        _openedByMeta,
+        openedBy.isAcceptableOrUnknown(data['opened_by']!, _openedByMeta),
+      );
+    }
+    if (data.containsKey('opening_float')) {
+      context.handle(
+        _openingFloatMeta,
+        openingFloat.isAcceptableOrUnknown(
+          data['opening_float']!,
+          _openingFloatMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_openingFloatMeta);
+    }
+    if (data.containsKey('closed_at')) {
+      context.handle(
+        _closedAtMeta,
+        closedAt.isAcceptableOrUnknown(data['closed_at']!, _closedAtMeta),
+      );
+    }
+    if (data.containsKey('closed_by')) {
+      context.handle(
+        _closedByMeta,
+        closedBy.isAcceptableOrUnknown(data['closed_by']!, _closedByMeta),
+      );
+    }
+    if (data.containsKey('counted_cash')) {
+      context.handle(
+        _countedCashMeta,
+        countedCash.isAcceptableOrUnknown(
+          data['counted_cash']!,
+          _countedCashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('expected_cash')) {
+      context.handle(
+        _expectedCashMeta,
+        expectedCash.isAcceptableOrUnknown(
+          data['expected_cash']!,
+          _expectedCashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CashSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CashSessionRow(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      drawerId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}drawer_id'],
+          )!,
+      status:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}status'],
+          )!,
+      openedAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}opened_at'],
+          )!,
+      openedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}opened_by'],
+      ),
+      openingFloat:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}opening_float'],
+          )!,
+      closedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}closed_at'],
+      ),
+      closedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}closed_by'],
+      ),
+      countedCash: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}counted_cash'],
+      ),
+      expectedCash: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}expected_cash'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+    );
+  }
+
+  @override
+  $CashSessionsTable createAlias(String alias) {
+    return $CashSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class CashSessionRow extends DataClass implements Insertable<CashSessionRow> {
+  final String id;
+
+  /// Device id of the POS whose drawer this is.
+  final String drawerId;
+
+  /// open | closed
+  final String status;
+  final DateTime openedAt;
+  final String? openedBy;
+
+  /// Millimes.
+  final int openingFloat;
+  final DateTime? closedAt;
+  final String? closedBy;
+  final int? countedCash;
+  final int? expectedCash;
+  final String? note;
+  const CashSessionRow({
+    required this.id,
+    required this.drawerId,
+    required this.status,
+    required this.openedAt,
+    this.openedBy,
+    required this.openingFloat,
+    this.closedAt,
+    this.closedBy,
+    this.countedCash,
+    this.expectedCash,
+    this.note,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['drawer_id'] = Variable<String>(drawerId);
+    map['status'] = Variable<String>(status);
+    map['opened_at'] = Variable<DateTime>(openedAt);
+    if (!nullToAbsent || openedBy != null) {
+      map['opened_by'] = Variable<String>(openedBy);
+    }
+    map['opening_float'] = Variable<int>(openingFloat);
+    if (!nullToAbsent || closedAt != null) {
+      map['closed_at'] = Variable<DateTime>(closedAt);
+    }
+    if (!nullToAbsent || closedBy != null) {
+      map['closed_by'] = Variable<String>(closedBy);
+    }
+    if (!nullToAbsent || countedCash != null) {
+      map['counted_cash'] = Variable<int>(countedCash);
+    }
+    if (!nullToAbsent || expectedCash != null) {
+      map['expected_cash'] = Variable<int>(expectedCash);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    return map;
+  }
+
+  CashSessionsCompanion toCompanion(bool nullToAbsent) {
+    return CashSessionsCompanion(
+      id: Value(id),
+      drawerId: Value(drawerId),
+      status: Value(status),
+      openedAt: Value(openedAt),
+      openedBy:
+          openedBy == null && nullToAbsent
+              ? const Value.absent()
+              : Value(openedBy),
+      openingFloat: Value(openingFloat),
+      closedAt:
+          closedAt == null && nullToAbsent
+              ? const Value.absent()
+              : Value(closedAt),
+      closedBy:
+          closedBy == null && nullToAbsent
+              ? const Value.absent()
+              : Value(closedBy),
+      countedCash:
+          countedCash == null && nullToAbsent
+              ? const Value.absent()
+              : Value(countedCash),
+      expectedCash:
+          expectedCash == null && nullToAbsent
+              ? const Value.absent()
+              : Value(expectedCash),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+    );
+  }
+
+  factory CashSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CashSessionRow(
+      id: serializer.fromJson<String>(json['id']),
+      drawerId: serializer.fromJson<String>(json['drawerId']),
+      status: serializer.fromJson<String>(json['status']),
+      openedAt: serializer.fromJson<DateTime>(json['openedAt']),
+      openedBy: serializer.fromJson<String?>(json['openedBy']),
+      openingFloat: serializer.fromJson<int>(json['openingFloat']),
+      closedAt: serializer.fromJson<DateTime?>(json['closedAt']),
+      closedBy: serializer.fromJson<String?>(json['closedBy']),
+      countedCash: serializer.fromJson<int?>(json['countedCash']),
+      expectedCash: serializer.fromJson<int?>(json['expectedCash']),
+      note: serializer.fromJson<String?>(json['note']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'drawerId': serializer.toJson<String>(drawerId),
+      'status': serializer.toJson<String>(status),
+      'openedAt': serializer.toJson<DateTime>(openedAt),
+      'openedBy': serializer.toJson<String?>(openedBy),
+      'openingFloat': serializer.toJson<int>(openingFloat),
+      'closedAt': serializer.toJson<DateTime?>(closedAt),
+      'closedBy': serializer.toJson<String?>(closedBy),
+      'countedCash': serializer.toJson<int?>(countedCash),
+      'expectedCash': serializer.toJson<int?>(expectedCash),
+      'note': serializer.toJson<String?>(note),
+    };
+  }
+
+  CashSessionRow copyWith({
+    String? id,
+    String? drawerId,
+    String? status,
+    DateTime? openedAt,
+    Value<String?> openedBy = const Value.absent(),
+    int? openingFloat,
+    Value<DateTime?> closedAt = const Value.absent(),
+    Value<String?> closedBy = const Value.absent(),
+    Value<int?> countedCash = const Value.absent(),
+    Value<int?> expectedCash = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+  }) => CashSessionRow(
+    id: id ?? this.id,
+    drawerId: drawerId ?? this.drawerId,
+    status: status ?? this.status,
+    openedAt: openedAt ?? this.openedAt,
+    openedBy: openedBy.present ? openedBy.value : this.openedBy,
+    openingFloat: openingFloat ?? this.openingFloat,
+    closedAt: closedAt.present ? closedAt.value : this.closedAt,
+    closedBy: closedBy.present ? closedBy.value : this.closedBy,
+    countedCash: countedCash.present ? countedCash.value : this.countedCash,
+    expectedCash: expectedCash.present ? expectedCash.value : this.expectedCash,
+    note: note.present ? note.value : this.note,
+  );
+  CashSessionRow copyWithCompanion(CashSessionsCompanion data) {
+    return CashSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      drawerId: data.drawerId.present ? data.drawerId.value : this.drawerId,
+      status: data.status.present ? data.status.value : this.status,
+      openedAt: data.openedAt.present ? data.openedAt.value : this.openedAt,
+      openedBy: data.openedBy.present ? data.openedBy.value : this.openedBy,
+      openingFloat:
+          data.openingFloat.present
+              ? data.openingFloat.value
+              : this.openingFloat,
+      closedAt: data.closedAt.present ? data.closedAt.value : this.closedAt,
+      closedBy: data.closedBy.present ? data.closedBy.value : this.closedBy,
+      countedCash:
+          data.countedCash.present ? data.countedCash.value : this.countedCash,
+      expectedCash:
+          data.expectedCash.present
+              ? data.expectedCash.value
+              : this.expectedCash,
+      note: data.note.present ? data.note.value : this.note,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashSessionRow(')
+          ..write('id: $id, ')
+          ..write('drawerId: $drawerId, ')
+          ..write('status: $status, ')
+          ..write('openedAt: $openedAt, ')
+          ..write('openedBy: $openedBy, ')
+          ..write('openingFloat: $openingFloat, ')
+          ..write('closedAt: $closedAt, ')
+          ..write('closedBy: $closedBy, ')
+          ..write('countedCash: $countedCash, ')
+          ..write('expectedCash: $expectedCash, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    drawerId,
+    status,
+    openedAt,
+    openedBy,
+    openingFloat,
+    closedAt,
+    closedBy,
+    countedCash,
+    expectedCash,
+    note,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CashSessionRow &&
+          other.id == this.id &&
+          other.drawerId == this.drawerId &&
+          other.status == this.status &&
+          other.openedAt == this.openedAt &&
+          other.openedBy == this.openedBy &&
+          other.openingFloat == this.openingFloat &&
+          other.closedAt == this.closedAt &&
+          other.closedBy == this.closedBy &&
+          other.countedCash == this.countedCash &&
+          other.expectedCash == this.expectedCash &&
+          other.note == this.note);
+}
+
+class CashSessionsCompanion extends UpdateCompanion<CashSessionRow> {
+  final Value<String> id;
+  final Value<String> drawerId;
+  final Value<String> status;
+  final Value<DateTime> openedAt;
+  final Value<String?> openedBy;
+  final Value<int> openingFloat;
+  final Value<DateTime?> closedAt;
+  final Value<String?> closedBy;
+  final Value<int?> countedCash;
+  final Value<int?> expectedCash;
+  final Value<String?> note;
+  final Value<int> rowid;
+  const CashSessionsCompanion({
+    this.id = const Value.absent(),
+    this.drawerId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.openedAt = const Value.absent(),
+    this.openedBy = const Value.absent(),
+    this.openingFloat = const Value.absent(),
+    this.closedAt = const Value.absent(),
+    this.closedBy = const Value.absent(),
+    this.countedCash = const Value.absent(),
+    this.expectedCash = const Value.absent(),
+    this.note = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CashSessionsCompanion.insert({
+    required String id,
+    required String drawerId,
+    this.status = const Value.absent(),
+    required DateTime openedAt,
+    this.openedBy = const Value.absent(),
+    required int openingFloat,
+    this.closedAt = const Value.absent(),
+    this.closedBy = const Value.absent(),
+    this.countedCash = const Value.absent(),
+    this.expectedCash = const Value.absent(),
+    this.note = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       drawerId = Value(drawerId),
+       openedAt = Value(openedAt),
+       openingFloat = Value(openingFloat);
+  static Insertable<CashSessionRow> custom({
+    Expression<String>? id,
+    Expression<String>? drawerId,
+    Expression<String>? status,
+    Expression<DateTime>? openedAt,
+    Expression<String>? openedBy,
+    Expression<int>? openingFloat,
+    Expression<DateTime>? closedAt,
+    Expression<String>? closedBy,
+    Expression<int>? countedCash,
+    Expression<int>? expectedCash,
+    Expression<String>? note,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (drawerId != null) 'drawer_id': drawerId,
+      if (status != null) 'status': status,
+      if (openedAt != null) 'opened_at': openedAt,
+      if (openedBy != null) 'opened_by': openedBy,
+      if (openingFloat != null) 'opening_float': openingFloat,
+      if (closedAt != null) 'closed_at': closedAt,
+      if (closedBy != null) 'closed_by': closedBy,
+      if (countedCash != null) 'counted_cash': countedCash,
+      if (expectedCash != null) 'expected_cash': expectedCash,
+      if (note != null) 'note': note,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CashSessionsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? drawerId,
+    Value<String>? status,
+    Value<DateTime>? openedAt,
+    Value<String?>? openedBy,
+    Value<int>? openingFloat,
+    Value<DateTime?>? closedAt,
+    Value<String?>? closedBy,
+    Value<int?>? countedCash,
+    Value<int?>? expectedCash,
+    Value<String?>? note,
+    Value<int>? rowid,
+  }) {
+    return CashSessionsCompanion(
+      id: id ?? this.id,
+      drawerId: drawerId ?? this.drawerId,
+      status: status ?? this.status,
+      openedAt: openedAt ?? this.openedAt,
+      openedBy: openedBy ?? this.openedBy,
+      openingFloat: openingFloat ?? this.openingFloat,
+      closedAt: closedAt ?? this.closedAt,
+      closedBy: closedBy ?? this.closedBy,
+      countedCash: countedCash ?? this.countedCash,
+      expectedCash: expectedCash ?? this.expectedCash,
+      note: note ?? this.note,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (drawerId.present) {
+      map['drawer_id'] = Variable<String>(drawerId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (openedAt.present) {
+      map['opened_at'] = Variable<DateTime>(openedAt.value);
+    }
+    if (openedBy.present) {
+      map['opened_by'] = Variable<String>(openedBy.value);
+    }
+    if (openingFloat.present) {
+      map['opening_float'] = Variable<int>(openingFloat.value);
+    }
+    if (closedAt.present) {
+      map['closed_at'] = Variable<DateTime>(closedAt.value);
+    }
+    if (closedBy.present) {
+      map['closed_by'] = Variable<String>(closedBy.value);
+    }
+    if (countedCash.present) {
+      map['counted_cash'] = Variable<int>(countedCash.value);
+    }
+    if (expectedCash.present) {
+      map['expected_cash'] = Variable<int>(expectedCash.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('drawerId: $drawerId, ')
+          ..write('status: $status, ')
+          ..write('openedAt: $openedAt, ')
+          ..write('openedBy: $openedBy, ')
+          ..write('openingFloat: $openingFloat, ')
+          ..write('closedAt: $closedAt, ')
+          ..write('closedBy: $closedBy, ')
+          ..write('countedCash: $countedCash, ')
+          ..write('expectedCash: $expectedCash, ')
+          ..write('note: $note, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CashMovementsTable extends CashMovements
+    with TableInfo<$CashMovementsTable, CashMovementRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CashMovementsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _staffIdMeta = const VerificationMeta(
+    'staffId',
+  );
+  @override
+  late final GeneratedColumn<String> staffId = GeneratedColumn<String>(
+    'staff_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sessionId,
+    type,
+    amount,
+    reason,
+    staffId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cash_movements';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CashMovementRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('staff_id')) {
+      context.handle(
+        _staffIdMeta,
+        staffId.isAcceptableOrUnknown(data['staff_id']!, _staffIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CashMovementRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CashMovementRow(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      sessionId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}session_id'],
+          )!,
+      type:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}type'],
+          )!,
+      amount:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}amount'],
+          )!,
+      reason:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}reason'],
+          )!,
+      staffId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}staff_id'],
+      ),
+      createdAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}created_at'],
+          )!,
+    );
+  }
+
+  @override
+  $CashMovementsTable createAlias(String alias) {
+    return $CashMovementsTable(attachedDatabase, alias);
+  }
+}
+
+class CashMovementRow extends DataClass implements Insertable<CashMovementRow> {
+  final String id;
+  final String sessionId;
+
+  /// in | out
+  final String type;
+  final int amount;
+  final String reason;
+  final String? staffId;
+  final DateTime createdAt;
+  const CashMovementRow({
+    required this.id,
+    required this.sessionId,
+    required this.type,
+    required this.amount,
+    required this.reason,
+    this.staffId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['type'] = Variable<String>(type);
+    map['amount'] = Variable<int>(amount);
+    map['reason'] = Variable<String>(reason);
+    if (!nullToAbsent || staffId != null) {
+      map['staff_id'] = Variable<String>(staffId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  CashMovementsCompanion toCompanion(bool nullToAbsent) {
+    return CashMovementsCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      type: Value(type),
+      amount: Value(amount),
+      reason: Value(reason),
+      staffId:
+          staffId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(staffId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory CashMovementRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CashMovementRow(
+      id: serializer.fromJson<String>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      type: serializer.fromJson<String>(json['type']),
+      amount: serializer.fromJson<int>(json['amount']),
+      reason: serializer.fromJson<String>(json['reason']),
+      staffId: serializer.fromJson<String?>(json['staffId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'type': serializer.toJson<String>(type),
+      'amount': serializer.toJson<int>(amount),
+      'reason': serializer.toJson<String>(reason),
+      'staffId': serializer.toJson<String?>(staffId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  CashMovementRow copyWith({
+    String? id,
+    String? sessionId,
+    String? type,
+    int? amount,
+    String? reason,
+    Value<String?> staffId = const Value.absent(),
+    DateTime? createdAt,
+  }) => CashMovementRow(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    type: type ?? this.type,
+    amount: amount ?? this.amount,
+    reason: reason ?? this.reason,
+    staffId: staffId.present ? staffId.value : this.staffId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  CashMovementRow copyWithCompanion(CashMovementsCompanion data) {
+    return CashMovementRow(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      type: data.type.present ? data.type.value : this.type,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      staffId: data.staffId.present ? data.staffId.value : this.staffId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashMovementRow(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('reason: $reason, ')
+          ..write('staffId: $staffId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, sessionId, type, amount, reason, staffId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CashMovementRow &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.type == this.type &&
+          other.amount == this.amount &&
+          other.reason == this.reason &&
+          other.staffId == this.staffId &&
+          other.createdAt == this.createdAt);
+}
+
+class CashMovementsCompanion extends UpdateCompanion<CashMovementRow> {
+  final Value<String> id;
+  final Value<String> sessionId;
+  final Value<String> type;
+  final Value<int> amount;
+  final Value<String> reason;
+  final Value<String?> staffId;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const CashMovementsCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.staffId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CashMovementsCompanion.insert({
+    required String id,
+    required String sessionId,
+    required String type,
+    required int amount,
+    required String reason,
+    this.staffId = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       sessionId = Value(sessionId),
+       type = Value(type),
+       amount = Value(amount),
+       reason = Value(reason),
+       createdAt = Value(createdAt);
+  static Insertable<CashMovementRow> custom({
+    Expression<String>? id,
+    Expression<String>? sessionId,
+    Expression<String>? type,
+    Expression<int>? amount,
+    Expression<String>? reason,
+    Expression<String>? staffId,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (type != null) 'type': type,
+      if (amount != null) 'amount': amount,
+      if (reason != null) 'reason': reason,
+      if (staffId != null) 'staff_id': staffId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CashMovementsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? sessionId,
+    Value<String>? type,
+    Value<int>? amount,
+    Value<String>? reason,
+    Value<String?>? staffId,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return CashMovementsCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      reason: reason ?? this.reason,
+      staffId: staffId ?? this.staffId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (staffId.present) {
+      map['staff_id'] = Variable<String>(staffId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashMovementsCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('reason: $reason, ')
+          ..write('staffId: $staffId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4594,6 +5793,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $StaffMembersTable staffMembers = $StaffMembersTable(this);
   late final $FloorAreasTable floorAreas = $FloorAreasTable(this);
   late final $DiningTablesTable diningTables = $DiningTablesTable(this);
+  late final $CashSessionsTable cashSessions = $CashSessionsTable(this);
+  late final $CashMovementsTable cashMovements = $CashMovementsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4609,6 +5810,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     staffMembers,
     floorAreas,
     diningTables,
+    cashSessions,
+    cashMovements,
   ];
 }
 
@@ -6225,6 +7428,7 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       required int tendered,
       required int changeGiven,
       required DateTime createdAt,
+      Value<String?> drawerId,
       Value<int> rowid,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
@@ -6236,6 +7440,7 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<int> tendered,
       Value<int> changeGiven,
       Value<DateTime> createdAt,
+      Value<String?> drawerId,
       Value<int> rowid,
     });
 
@@ -6280,6 +7485,11 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get drawerId => $composableBuilder(
+    column: $table.drawerId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6327,6 +7537,11 @@ class $$PaymentsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get drawerId => $composableBuilder(
+    column: $table.drawerId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PaymentsTableAnnotationComposer
@@ -6360,6 +7575,9 @@ class $$PaymentsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get drawerId =>
+      $composableBuilder(column: $table.drawerId, builder: (column) => column);
 }
 
 class $$PaymentsTableTableManager
@@ -6400,6 +7618,7 @@ class $$PaymentsTableTableManager
                 Value<int> tendered = const Value.absent(),
                 Value<int> changeGiven = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> drawerId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PaymentsCompanion(
                 id: id,
@@ -6409,6 +7628,7 @@ class $$PaymentsTableTableManager
                 tendered: tendered,
                 changeGiven: changeGiven,
                 createdAt: createdAt,
+                drawerId: drawerId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6420,6 +7640,7 @@ class $$PaymentsTableTableManager
                 required int tendered,
                 required int changeGiven,
                 required DateTime createdAt,
+                Value<String?> drawerId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 id: id,
@@ -6429,6 +7650,7 @@ class $$PaymentsTableTableManager
                 tendered: tendered,
                 changeGiven: changeGiven,
                 createdAt: createdAt,
+                drawerId: drawerId,
                 rowid: rowid,
               ),
           withReferenceMapper:
@@ -7017,6 +8239,583 @@ typedef $$DiningTablesTableProcessedTableManager =
       DiningTableRow,
       PrefetchHooks Function()
     >;
+typedef $$CashSessionsTableCreateCompanionBuilder =
+    CashSessionsCompanion Function({
+      required String id,
+      required String drawerId,
+      Value<String> status,
+      required DateTime openedAt,
+      Value<String?> openedBy,
+      required int openingFloat,
+      Value<DateTime?> closedAt,
+      Value<String?> closedBy,
+      Value<int?> countedCash,
+      Value<int?> expectedCash,
+      Value<String?> note,
+      Value<int> rowid,
+    });
+typedef $$CashSessionsTableUpdateCompanionBuilder =
+    CashSessionsCompanion Function({
+      Value<String> id,
+      Value<String> drawerId,
+      Value<String> status,
+      Value<DateTime> openedAt,
+      Value<String?> openedBy,
+      Value<int> openingFloat,
+      Value<DateTime?> closedAt,
+      Value<String?> closedBy,
+      Value<int?> countedCash,
+      Value<int?> expectedCash,
+      Value<String?> note,
+      Value<int> rowid,
+    });
+
+class $$CashSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $CashSessionsTable> {
+  $$CashSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get drawerId => $composableBuilder(
+    column: $table.drawerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get openedAt => $composableBuilder(
+    column: $table.openedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get openedBy => $composableBuilder(
+    column: $table.openedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openingFloat => $composableBuilder(
+    column: $table.openingFloat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get closedAt => $composableBuilder(
+    column: $table.closedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get closedBy => $composableBuilder(
+    column: $table.closedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get countedCash => $composableBuilder(
+    column: $table.countedCash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get expectedCash => $composableBuilder(
+    column: $table.expectedCash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CashSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CashSessionsTable> {
+  $$CashSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get drawerId => $composableBuilder(
+    column: $table.drawerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get openedAt => $composableBuilder(
+    column: $table.openedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get openedBy => $composableBuilder(
+    column: $table.openedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openingFloat => $composableBuilder(
+    column: $table.openingFloat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get closedAt => $composableBuilder(
+    column: $table.closedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get closedBy => $composableBuilder(
+    column: $table.closedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get countedCash => $composableBuilder(
+    column: $table.countedCash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get expectedCash => $composableBuilder(
+    column: $table.expectedCash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CashSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CashSessionsTable> {
+  $$CashSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get drawerId =>
+      $composableBuilder(column: $table.drawerId, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get openedAt =>
+      $composableBuilder(column: $table.openedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get openedBy =>
+      $composableBuilder(column: $table.openedBy, builder: (column) => column);
+
+  GeneratedColumn<int> get openingFloat => $composableBuilder(
+    column: $table.openingFloat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get closedAt =>
+      $composableBuilder(column: $table.closedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get closedBy =>
+      $composableBuilder(column: $table.closedBy, builder: (column) => column);
+
+  GeneratedColumn<int> get countedCash => $composableBuilder(
+    column: $table.countedCash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get expectedCash => $composableBuilder(
+    column: $table.expectedCash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+}
+
+class $$CashSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CashSessionsTable,
+          CashSessionRow,
+          $$CashSessionsTableFilterComposer,
+          $$CashSessionsTableOrderingComposer,
+          $$CashSessionsTableAnnotationComposer,
+          $$CashSessionsTableCreateCompanionBuilder,
+          $$CashSessionsTableUpdateCompanionBuilder,
+          (
+            CashSessionRow,
+            BaseReferences<_$AppDatabase, $CashSessionsTable, CashSessionRow>,
+          ),
+          CashSessionRow,
+          PrefetchHooks Function()
+        > {
+  $$CashSessionsTableTableManager(_$AppDatabase db, $CashSessionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$CashSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$CashSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () =>
+                  $$CashSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> drawerId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> openedAt = const Value.absent(),
+                Value<String?> openedBy = const Value.absent(),
+                Value<int> openingFloat = const Value.absent(),
+                Value<DateTime?> closedAt = const Value.absent(),
+                Value<String?> closedBy = const Value.absent(),
+                Value<int?> countedCash = const Value.absent(),
+                Value<int?> expectedCash = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashSessionsCompanion(
+                id: id,
+                drawerId: drawerId,
+                status: status,
+                openedAt: openedAt,
+                openedBy: openedBy,
+                openingFloat: openingFloat,
+                closedAt: closedAt,
+                closedBy: closedBy,
+                countedCash: countedCash,
+                expectedCash: expectedCash,
+                note: note,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String drawerId,
+                Value<String> status = const Value.absent(),
+                required DateTime openedAt,
+                Value<String?> openedBy = const Value.absent(),
+                required int openingFloat,
+                Value<DateTime?> closedAt = const Value.absent(),
+                Value<String?> closedBy = const Value.absent(),
+                Value<int?> countedCash = const Value.absent(),
+                Value<int?> expectedCash = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashSessionsCompanion.insert(
+                id: id,
+                drawerId: drawerId,
+                status: status,
+                openedAt: openedAt,
+                openedBy: openedBy,
+                openingFloat: openingFloat,
+                closedAt: closedAt,
+                closedBy: closedBy,
+                countedCash: countedCash,
+                expectedCash: expectedCash,
+                note: note,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CashSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CashSessionsTable,
+      CashSessionRow,
+      $$CashSessionsTableFilterComposer,
+      $$CashSessionsTableOrderingComposer,
+      $$CashSessionsTableAnnotationComposer,
+      $$CashSessionsTableCreateCompanionBuilder,
+      $$CashSessionsTableUpdateCompanionBuilder,
+      (
+        CashSessionRow,
+        BaseReferences<_$AppDatabase, $CashSessionsTable, CashSessionRow>,
+      ),
+      CashSessionRow,
+      PrefetchHooks Function()
+    >;
+typedef $$CashMovementsTableCreateCompanionBuilder =
+    CashMovementsCompanion Function({
+      required String id,
+      required String sessionId,
+      required String type,
+      required int amount,
+      required String reason,
+      Value<String?> staffId,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$CashMovementsTableUpdateCompanionBuilder =
+    CashMovementsCompanion Function({
+      Value<String> id,
+      Value<String> sessionId,
+      Value<String> type,
+      Value<int> amount,
+      Value<String> reason,
+      Value<String?> staffId,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$CashMovementsTableFilterComposer
+    extends Composer<_$AppDatabase, $CashMovementsTable> {
+  $$CashMovementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get staffId => $composableBuilder(
+    column: $table.staffId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CashMovementsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CashMovementsTable> {
+  $$CashMovementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get staffId => $composableBuilder(
+    column: $table.staffId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CashMovementsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CashMovementsTable> {
+  $$CashMovementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get staffId =>
+      $composableBuilder(column: $table.staffId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$CashMovementsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CashMovementsTable,
+          CashMovementRow,
+          $$CashMovementsTableFilterComposer,
+          $$CashMovementsTableOrderingComposer,
+          $$CashMovementsTableAnnotationComposer,
+          $$CashMovementsTableCreateCompanionBuilder,
+          $$CashMovementsTableUpdateCompanionBuilder,
+          (
+            CashMovementRow,
+            BaseReferences<_$AppDatabase, $CashMovementsTable, CashMovementRow>,
+          ),
+          CashMovementRow,
+          PrefetchHooks Function()
+        > {
+  $$CashMovementsTableTableManager(_$AppDatabase db, $CashMovementsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$CashMovementsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () =>
+                  $$CashMovementsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$CashMovementsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<int> amount = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<String?> staffId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashMovementsCompanion(
+                id: id,
+                sessionId: sessionId,
+                type: type,
+                amount: amount,
+                reason: reason,
+                staffId: staffId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String sessionId,
+                required String type,
+                required int amount,
+                required String reason,
+                Value<String?> staffId = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CashMovementsCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                type: type,
+                amount: amount,
+                reason: reason,
+                staffId: staffId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CashMovementsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CashMovementsTable,
+      CashMovementRow,
+      $$CashMovementsTableFilterComposer,
+      $$CashMovementsTableOrderingComposer,
+      $$CashMovementsTableAnnotationComposer,
+      $$CashMovementsTableCreateCompanionBuilder,
+      $$CashMovementsTableUpdateCompanionBuilder,
+      (
+        CashMovementRow,
+        BaseReferences<_$AppDatabase, $CashMovementsTable, CashMovementRow>,
+      ),
+      CashMovementRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7041,4 +8840,8 @@ class $AppDatabaseManager {
       $$FloorAreasTableTableManager(_db, _db.floorAreas);
   $$DiningTablesTableTableManager get diningTables =>
       $$DiningTablesTableTableManager(_db, _db.diningTables);
+  $$CashSessionsTableTableManager get cashSessions =>
+      $$CashSessionsTableTableManager(_db, _db.cashSessions);
+  $$CashMovementsTableTableManager get cashMovements =>
+      $$CashMovementsTableTableManager(_db, _db.cashMovements);
 }

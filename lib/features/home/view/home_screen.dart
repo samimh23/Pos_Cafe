@@ -8,6 +8,7 @@ import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/sync_controller.dart';
 import '../../../core/lan/hub_widgets.dart';
+import '../../cash/view/cash_screen.dart';
 import '../../floor/view_model/floor_view_model.dart';
 import '../../order/view/modifiers_dialog.dart';
 import '../../order/view/ticket_panel.dart';
@@ -62,6 +63,9 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+/// Below this screen width the app bar chips get short labels.
+const compactBarWidth = 1500.0;
+
 /// Staff name, sync status, developer menu — same on the tables and order screens.
 class PosAppBarActions extends ConsumerWidget {
   const PosAppBarActions({super.key});
@@ -69,14 +73,18 @@ class PosAppBarActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vm = ref.read(homeViewModelProvider.notifier);
+    // Tablets and small PCs: short chips (full text in the tooltip) so the bar never overflows.
+    final compact = MediaQuery.sizeOf(context).width < compactBarWidth;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         const _StaffChip(),
         const SizedBox(width: 8),
-        const HubStatusChip(),
+        CashChip(compact: compact),
         const SizedBox(width: 8),
-        const _SyncStatusChip(),
+        HubStatusChip(compact: compact),
+        const SizedBox(width: 8),
+        _SyncStatusChip(compact: compact),
         if (kDebugMode)
           PopupMenuButton<String>(
             tooltip: 'Développement',
@@ -119,7 +127,8 @@ class _StaffChip extends ConsumerWidget {
 }
 
 class _SyncStatusChip extends ConsumerWidget {
-  const _SyncStatusChip();
+  const _SyncStatusChip({this.compact = false});
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -134,12 +143,15 @@ class _SyncStatusChip extends ConsumerWidget {
       _ => (Icons.cloud_queue, Colors.grey, '…'),
     };
 
+    final full = pending > 0 ? '$label · $pending en attente' : label;
     return Tooltip(
-      message: 'Appuyer pour synchroniser maintenant',
+      message: compact ? '$full — appuyer pour synchroniser' : 'Appuyer pour synchroniser maintenant',
       child: ActionChip(
         key: const Key('sync-chip'),
         avatar: Icon(icon, color: color, size: 18),
-        label: Text(pending > 0 ? '$label · $pending en attente' : label),
+        label: Text(
+          compact ? (pending > 0 ? '$pending' : (status.connection == Connection.online ? 'OK' : '!')) : full,
+        ),
         onPressed: () => ref.read(homeViewModelProvider.notifier).syncNow(),
       ),
     );

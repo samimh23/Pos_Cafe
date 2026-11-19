@@ -146,6 +146,9 @@ class Payments extends Table {
   IntColumn get changeGiven => integer()();
   DateTimeColumn get createdAt => dateTime()();
 
+  /// Cash drawer (device id) the money went into (v7) — for the cash session totals.
+  TextColumn get drawerId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -184,6 +187,49 @@ class DiningTables extends Table {
   TextColumn get name => text()();
   IntColumn get seats => integer().withDefault(const Constant(4))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A cash drawer's day (v7): opened with a float, closed with a count.
+/// On the main POS for every drawer of the café; a tablet keeps a copy of its open one.
+@DataClassName('CashSessionRow')
+class CashSessions extends Table {
+  TextColumn get id => text()();
+
+  /// Device id of the POS whose drawer this is.
+  TextColumn get drawerId => text()();
+
+  /// open | closed
+  TextColumn get status => text().withDefault(const Constant('open'))();
+  DateTimeColumn get openedAt => dateTime()();
+  TextColumn get openedBy => text().nullable()();
+
+  /// Millimes.
+  IntColumn get openingFloat => integer()();
+  DateTimeColumn get closedAt => dateTime().nullable()();
+  TextColumn get closedBy => text().nullable()();
+  IntColumn get countedCash => integer().nullable()();
+  IntColumn get expectedCash => integer().nullable()();
+  TextColumn get note => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Cash put in or taken out of a drawer during a session (v7).
+@DataClassName('CashMovementRow')
+class CashMovements extends Table {
+  TextColumn get id => text()();
+  TextColumn get sessionId => text()();
+
+  /// in | out
+  TextColumn get type => text()();
+  IntColumn get amount => integer()();
+  TextColumn get reason => text()();
+  TextColumn get staffId => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};

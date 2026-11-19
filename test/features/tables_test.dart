@@ -11,6 +11,7 @@ import 'package:pos_cafe/features/order/view/payment_dialog.dart';
 
 import '../core/sync_engine_test.dart' show identity;
 import '../fakes.dart';
+import '../order_helpers.dart';
 import 'order_repository_test.dart' show product;
 
 /// Several tickets at once (tables + counter), moving tickets, split payments.
@@ -33,6 +34,7 @@ void main() {
     await SyncEngine(db, api, outbox, identity).pullMenu();
     final tables = {for (final t in await db.select(db.diningTables).get()) t.id: t};
     (t1, t2, terrasse) = (tables['table-1']!, tables['table-2']!, tables['table-t1']!);
+    await openTestDrawer(db);
   });
   tearDown(() => db.close());
 
@@ -108,12 +110,18 @@ void main() {
       o.id,
       PaymentRequest.cash(amount: share, tendered: const Money.dt(5)),
       deviceCode: 'T1',
+      drawerId: testDrawer,
     );
     expect((first.closed, first.change, first.remaining), (false, const Money(3050), const Money(1950)));
     expect(await orders.watchPaid(o.id).first, const Money(1950));
     expect(await events('order.closed'), isEmpty);
 
-    final second = await orders.pay(o.id, const PaymentRequest.card(amount: Money(1950)), deviceCode: 'T1');
+    final second = await orders.pay(
+      o.id,
+      const PaymentRequest.card(amount: Money(1950)),
+      deviceCode: 'T1',
+      drawerId: testDrawer,
+    );
     expect((second.closed, second.receiptNumber, second.change), (true, 'T1-000001', Money.zero));
     expect(await orders.watchOpenOrder(tableId: t1.id).first, isNull); // table free
 
@@ -134,6 +142,7 @@ void main() {
       o.id,
       PaymentRequest.cash(amount: Money.zero, tendered: const Money.dt(2), lineIds: [expressLine.id]),
       deviceCode: 'T1',
+      drawerId: testDrawer,
     );
     expect((r.amount, r.change, r.remaining), (const Money(1200), const Money(800), const Money(4000)));
     expect((await events('payment.added')).single['lineIds'], [expressLine.id]);
@@ -142,7 +151,12 @@ void main() {
     await expectLater(orders.setQty(expressLine.id, 2), throwsA(isA<OrderException>()));
     await expectLater(orders.removeLine(expressLine.id), throwsA(isA<OrderException>()));
     await expectLater(
-      orders.pay(o.id, PaymentRequest.card(amount: Money.zero, lineIds: [expressLine.id]), deviceCode: 'T1'),
+      orders.pay(
+        o.id,
+        PaymentRequest.card(amount: Money.zero, lineIds: [expressLine.id]),
+        deviceCode: 'T1',
+        drawerId: testDrawer,
+      ),
       throwsA(isA<OrderException>().having((e) => e.message, 'm', contains('déjà payé'))),
     );
 
@@ -155,6 +169,7 @@ void main() {
       o.id,
       PaymentRequest.card(amount: Money.zero, lineIds: [jusLine.id, now.last.id]),
       deviceCode: 'T1',
+      drawerId: testDrawer,
     );
     expect((last.amount, last.closed), (const Money(5200), true));
   });
@@ -163,7 +178,7 @@ void main() {
     await orders.addProduct(express, table: t1);
     await orders.addProduct(jus, table: t1); // 5.200
     final o = await openAt(t1);
-    await orders.pay(o.id, const PaymentRequest.card(amount: Money(4500)), deviceCode: 'T1');
+    await orders.pay(o.id, const PaymentRequest.card(amount: Money(4500)), deviceCode: 'T1', drawerId: testDrawer);
 
     await expectLater(orders.cancelOrder(o.id), throwsA(isA<OrderException>()));
     final jusLine = (await orders.watchLines(o.id).first).firstWhere((l) => l.name == 'Jus');
@@ -182,11 +197,16 @@ void main() {
     final before = (await outbox.pending()).length;
 
     await expectLater(
-      orders.pay(o.id, const PaymentRequest.card(amount: Money(5000)), deviceCode: 'T1'),
+      orders.pay(o.id, const PaymentRequest.card(amount: Money(5000)), deviceCode: 'T1', drawerId: testDrawer),
       throwsA(isA<OrderException>().having((e) => e.message, 'm', contains('il reste 1.200 DT'))),
     );
     await expectLater(
-      orders.pay(o.id, const PaymentRequest.cash(amount: Money(1200), tendered: Money(1000)), deviceCode: 'T1'),
+      orders.pay(
+        o.id,
+        const PaymentRequest.cash(amount: Money(1200), tendered: Money(1000)),
+        deviceCode: 'T1',
+        drawerId: testDrawer,
+      ),
       throwsA(isA<OrderException>().having((e) => e.message, 'm', contains('insuffisant'))),
     );
     expect(await db.select(db.payments).get(), isEmpty);

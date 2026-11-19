@@ -8,5 +8,8 @@ abstract final class EventTypes {
   static const orderClosed = 'order.closed';
   static const orderTableChanged = 'order.table_changed';
   static const orderBillRequested = 'order.bill_requested';
+  static const cashSessionOpened = 'cash_session.opened';
+  static const cashMoved = 'cash.moved';
+  static const cashSessionClosed = 'cash_session.closed';
   static const paymentAdded = 'payment.added';
 }

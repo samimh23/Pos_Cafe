@@ -85,7 +85,9 @@ abstract interface class OrderActions {
   Future<void> removeLine(String lineId);
   Future<void> cancelOrder(String orderId);
   Future<void> moveOrder(String orderId, DiningTableRow? to);
-  Future<PaymentResult> pay(String orderId, PaymentRequest req, {required String deviceCode});
+
+  /// [drawerId]: the cash drawer (device id) the money goes into — it must be open.
+  Future<PaymentResult> pay(String orderId, PaymentRequest req, {required String deviceCode, required String drawerId});
   Future<void> requestBill(String orderId);
 }
 
@@ -287,9 +289,22 @@ class OrderRepository implements OrderActions {
   /// Pays all or part of a ticket. When nothing is left to pay, the ticket gets
   /// its receipt number and closes — all in one transaction.
   @override
-  Future<PaymentResult> pay(String orderId, PaymentRequest req, {required String deviceCode}) {
+  Future<PaymentResult> pay(
+    String orderId,
+    PaymentRequest req, {
+    required String deviceCode,
+    required String drawerId,
+  }) {
     return _db.transaction(() async {
       final order = await _openOrder(orderId);
+      final drawerOpen =
+          await (_db.select(_db.cashSessions)
+                ..where((t) => t.drawerId.equals(drawerId) & t.status.equals('open'))
+                ..limit(1))
+              .getSingleOrNull();
+      if (drawerOpen == null) {
+        throw const OrderException('Caisse fermée : ouvrez la caisse (fond de caisse) avant d’encaisser.');
+      }
       final lines =
           await (_db.select(_db.orderLines)..where((l) => l.orderId.equals(order.id) & l.voided.equals(false))).get();
       final totals = OrderTotals.of(lines.map(amountsOf));
@@ -324,6 +339,7 @@ class OrderRepository implements OrderActions {
               tendered: tendered.millimes,
               changeGiven: change.millimes,
               createdAt: now,
+              drawerId: Value(drawerId),
             ),
           );
       if (req.lineIds.isNotEmpty) {
@@ -340,6 +356,7 @@ class OrderRepository implements OrderActions {
           'amount': amount.millimes,
           'tendered': tendered.millimes,
           'change': change.millimes,
+          'drawerId': drawerId,
           if (req.lineIds.isNotEmpty) 'lineIds': req.lineIds,
         },
       );

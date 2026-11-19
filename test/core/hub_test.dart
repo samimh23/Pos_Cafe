@@ -160,7 +160,7 @@ void main() {
     final orderId = (await hubOrderAt('table-4'))!.id;
 
     await expectLater(
-      server2.pay(orderId, const PaymentRequest.card(amount: Money(1200)), deviceCode: 'T2'),
+      server2.pay(orderId, const PaymentRequest.card(amount: Money(1200)), deviceCode: 'T2', drawerId: 'tab-2'),
       throwsA(isA<OrderException>().having((e) => e.message, 'm', 'Cette caisse ne peut pas encaisser.')),
     );
 
@@ -169,10 +169,19 @@ void main() {
     expect(tickets.single.billRequested, isTrue);
     expect((await hubOutbox.pending()).last.type, 'order.bill_requested');
 
-    final r = await HubOrderActions(
-      t,
-      staffId: () => 'staff-ahmed',
-    ).pay(orderId, const PaymentRequest.cash(amount: Money(1200), tendered: Money.dt(2)), deviceCode: 'T3');
+    // The terrace POS opens ITS drawer (kept on the main POS), then takes the payment.
+    final terraceCash = HubCashActions(t, staffId: () => 'staff-ahmed');
+    await terraceCash.open(const Money.dt(20));
+    await eventually(
+      () async => (await terraceDb.select(terraceDb.cashSessions).get()).any((s) => s.drawerId == 'tab-3'),
+      reason: 'the tablet sees its open drawer',
+    );
+    final r = await HubOrderActions(t, staffId: () => 'staff-ahmed').pay(
+      orderId,
+      const PaymentRequest.cash(amount: Money(1200), tendered: Money.dt(2)),
+      deviceCode: 'T3',
+      drawerId: 'tab-3',
+    );
     // One receipt sequence for the café: the Hub's.
     expect((r.closed, r.receiptNumber, r.change), (true, 'T1-000001', const Money(800)));
     expect(await hubOrderAt('table-4'), isNull);

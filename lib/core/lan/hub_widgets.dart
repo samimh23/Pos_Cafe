@@ -7,7 +7,10 @@ import 'lan_providers.dart';
 /// App bar chip — says plainly what this POS is connected to:
 /// main POS: "2 tablettes connectées"; secondary POS: "Reliée à T1" / "T1 injoignable".
 class HubStatusChip extends ConsumerWidget {
-  const HubStatusChip({super.key});
+  const HubStatusChip({super.key, this.compact = false});
+
+  /// Short label ("2", "T1") when the app bar is narrow; the tooltip keeps the full text.
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +25,11 @@ class HubStatusChip extends ConsumerWidget {
             key: const Key('hub-chip'),
             avatar: const Icon(Icons.tablet_android_outlined, size: 18),
             label: Text(
-              n == 0 ? 'Aucune tablette connectée' : '$n tablette${n > 1 ? 's' : ''} connectée${n > 1 ? 's' : ''}',
+              compact
+                  ? '$n'
+                  : (n == 0
+                      ? 'Aucune tablette connectée'
+                      : '$n tablette${n > 1 ? 's' : ''} connectée${n > 1 ? 's' : ''}'),
             ),
           ),
         );
@@ -41,7 +48,9 @@ class HubStatusChip extends ConsumerWidget {
               size: 18,
               color: link.connected ? Colors.green : Colors.red,
             ),
-            label: Text(link.connected ? 'Reliée à $hub' : '$hub injoignable'),
+            label: Text(
+              compact ? (link.connected ? hub : '$hub ✗') : (link.connected ? 'Reliée à $hub' : '$hub injoignable'),
+            ),
           ),
         );
     }

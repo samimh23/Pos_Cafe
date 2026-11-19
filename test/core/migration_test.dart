@@ -28,6 +28,10 @@ void main() {
     await db.customStatement('ALTER TABLE order_lines DROP COLUMN payment_id');
     // v6 addition
     await db.customStatement('ALTER TABLE orders DROP COLUMN bill_requested_at');
+    // v7 additions
+    await db.customStatement('DROP TABLE cash_sessions');
+    await db.customStatement('DROP TABLE cash_movements');
+    await db.customStatement('ALTER TABLE payments DROP COLUMN drawer_id');
     await db.customStatement('PRAGMA user_version = 2');
     await db.close();
 
@@ -39,6 +43,7 @@ void main() {
     expect((await db.customSelect('PRAGMA user_version').getSingle()).data.values.first, db.schemaVersion);
     expect(await db.select(db.staffMembers).get(), isEmpty); // v4 table created
     expect(await db.select(db.diningTables).get(), isEmpty); // v5 tables created
+    expect(await db.select(db.cashSessions).get(), isEmpty); // v7 tables created
     final old = await db.select(db.orders).getSingle(); // old ticket kept: counter, no bill request
     expect((old.tableId, old.billRequestedAt), (null, null));
     await db.close();

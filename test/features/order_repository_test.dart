@@ -32,10 +32,11 @@ void main() {
   final express = product('p1', 'Express', 1200);
   final croissant = product('p2', 'Croissant', 1500, vat: 700);
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     outbox = OutboxRepository(db);
     orders = OrderRepository(db, outbox);
+    await openTestDrawer(db);
   });
   tearDown(() => db.close());
 

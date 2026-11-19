@@ -5,6 +5,8 @@ import '../../../core/lan/lan_providers.dart';
 import '../../../core/menu/modifiers.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/order_totals.dart';
+import '../../cash/view/cash_screen.dart';
+import '../../cash/view_model/cash_view_model.dart';
 import '../../floor/view_model/floor_view_model.dart';
 import '../data/order_repository.dart';
 import '../view_model/order_view_model.dart';
@@ -169,7 +171,7 @@ class TicketPanel extends ConsumerWidget {
                           key: const Key('pay-cash'),
                           icon: const Icon(Icons.payments_outlined),
                           label: Text(ticket.isEmpty ? 'Encaisser' : 'Encaisser ${ticket.remaining}'),
-                          onPressed: ticket.isEmpty || busy ? null : () => _pay(context, vm, ticket),
+                          onPressed: ticket.isEmpty || busy ? null : () => _pay(context, ref, vm, ticket),
                         )
                         // Server tablets: the cashier takes the payment at the main POS.
                         : FilledButton.tonalIcon(
@@ -196,7 +198,11 @@ class TicketPanel extends ConsumerWidget {
     }
   }
 
-  Future<void> _pay(BuildContext context, OrderViewModel vm, TicketState ticket) async {
+  Future<void> _pay(BuildContext context, WidgetRef ref, OrderViewModel vm, TicketState ticket) async {
+    // First payment of the day: open the drawer with its float first.
+    if (ref.read(openCashSessionProvider).value == null) {
+      if (!await openDrawer(context, ref) || !context.mounted) return;
+    }
     final request = await showPaymentDialog(context, remaining: ticket.remaining, unpaidLines: ticket.unpaidLines);
     if (request == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);

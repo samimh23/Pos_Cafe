@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../features/cash/data/cash_repository.dart';
 import '../../features/order/data/order_repository.dart';
 import '../db/app_database.dart';
 import '../device/device_repository.dart';
@@ -34,10 +35,14 @@ class HubMirror {
     await _db.delete(_db.payments).go();
     await _db.delete(_db.orderLines).go();
     await _db.delete(_db.orders).go();
+    await _db.delete(_db.cashSessions).go();
     await _db.batch((b) {
       b.insertAll(_db.orders, [for (final o in snapshot['orders'] as List) OrderRow.fromJson(_map(o))]);
       b.insertAll(_db.orderLines, [for (final l in snapshot['lines'] as List) OrderLineRow.fromJson(_map(l))]);
       b.insertAll(_db.payments, [for (final p in snapshot['payments'] as List) PaymentRow.fromJson(_map(p))]);
+      b.insertAll(_db.cashSessions, [
+        for (final s in (snapshot['cashSessions'] as List? ?? const [])) CashSessionRow.fromJson(_map(s)),
+      ]);
     });
   });
 
@@ -248,7 +253,12 @@ class HubOrderActions implements OrderActions {
   Future<void> requestBill(String orderId) => _send('request_bill', {'orderId': orderId});
 
   @override
-  Future<PaymentResult> pay(String orderId, PaymentRequest req, {required String deviceCode}) async {
+  Future<PaymentResult> pay(
+    String orderId,
+    PaymentRequest req, {
+    required String deviceCode,
+    required String drawerId, // the main POS knows: this tablet's drawer
+  }) async {
     final r =
         (await _send('pay', {
               'orderId': orderId,
@@ -266,4 +276,32 @@ class HubOrderActions implements OrderActions {
       total: Money(r['total'] as int),
     );
   }
+}
+
+/// Cash drawer of a tablet allowed to take payments: the session lives on the main POS.
+class HubCashActions implements CashActions {
+  HubCashActions(this._client, {required String? Function() staffId}) : _staffId = staffId;
+  final HubClient _client;
+  final String? Function() _staffId;
+
+  Future<Map<String, dynamic>> _send(String action, Map<String, Object?> params) =>
+      _client.command(action, params, staffId: _staffId());
+
+  @override
+  Future<void> open(Money openingFloat) => _send('cash_open', {'openingFloat': openingFloat.millimes});
+
+  @override
+  Future<void> move({required bool cashIn, required Money amount, required String reason}) =>
+      _send('cash_move', {'type': cashIn ? 'in' : 'out', 'amount': amount.millimes, 'reason': reason});
+
+  @override
+  Future<CashSummary?> summary() async {
+    final r = (await _send('cash_summary', {}))['result'];
+    return r == null ? null : CashSummary.fromJson((r as Map).cast<String, dynamic>());
+  }
+
+  @override
+  Future<CashClosing> close({required Money counted, String? note}) async => CashClosing.fromJson(
+    ((await _send('cash_close', {'counted': counted.millimes, 'note': note}))['result'] as Map).cast<String, dynamic>(),
+  );
 }

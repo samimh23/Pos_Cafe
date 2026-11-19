@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 
+import '../../features/cash/data/cash_repository.dart';
 import '../../features/order/data/order_repository.dart';
 import '../db/app_database.dart';
 import '../device/device_repository.dart';
@@ -70,7 +71,7 @@ class HubServer {
     server.listen((req) => _handle(req).catchError((Object e) => _reply(req.response, 500, {'error': '$e'})));
     // Any change to tickets (from this POS or a tablet) → every tablet gets the new list.
     _changes = _db
-        .tableUpdates(TableUpdateQuery.onAllTables([_db.orders, _db.orderLines, _db.payments]))
+        .tableUpdates(TableUpdateQuery.onAllTables([_db.orders, _db.orderLines, _db.payments, _db.cashSessions]))
         .listen((_) => _scheduleBroadcast());
     return server.port;
   }
@@ -239,7 +240,8 @@ class HubServer {
               c['method'] == 'card'
                   ? PaymentRequest.card(amount: amount, lineIds: lineIds)
                   : PaymentRequest.cash(amount: amount, tendered: Money(c['tendered'] as int), lineIds: lineIds);
-          final r = await repo.pay(c['orderId'] as String, req, deviceCode: _identity.deviceCode);
+          // Cash goes into the drawer of the POS that took it (the tablet's own drawer).
+          final r = await repo.pay(c['orderId'] as String, req, deviceCode: _identity.deviceCode, drawerId: device.id);
           return (
             200,
             {
@@ -253,6 +255,8 @@ class HubServer {
               },
             },
           );
+        case 'cash_open' || 'cash_move' || 'cash_summary' || 'cash_close':
+          return await _cash(device, staffId, c);
         default:
           return (400, _error('Action inconnue : ${c['action']}'));
       }
@@ -260,6 +264,31 @@ class HubServer {
     } on OrderException catch (e) {
       return (409, _error(e.message));
     }
+  }
+
+  /// A tablet's own cash drawer, kept on the main POS like its tickets.
+  Future<(int, Map<String, Object?>)> _cash(LanDevice device, String staffId, Map<String, dynamic> c) async {
+    if (!device.canTakePayments) return (403, _error('Cette caisse ne peut pas encaisser.'));
+    final cash = CashRepository(
+      _db,
+      _outbox,
+      drawerId: device.id,
+      staffId: () => staffId,
+      clock: _now,
+      checkOpenTickets: false, // tickets belong to the whole café, not to this drawer
+    );
+    switch (c['action']) {
+      case 'cash_open':
+        await cash.open(Money(c['openingFloat'] as int));
+      case 'cash_move':
+        await cash.move(cashIn: c['type'] == 'in', amount: Money(c['amount'] as int), reason: c['reason'] as String);
+      case 'cash_summary':
+        return (200, {'ok': true, 'result': (await cash.summary())?.toJson()});
+      case 'cash_close':
+        final closing = await cash.close(counted: Money(c['counted'] as int), note: c['note'] as String?);
+        return (200, {'ok': true, 'result': closing.toJson()});
+    }
+    return (200, {'ok': true});
   }
 
   Future<DiningTableRow?> _table(String? id) async {
@@ -283,12 +312,15 @@ class HubServer {
             : await (_db.select(_db.orderLines)..where((l) => l.orderId.isIn(ids) & l.voided.equals(false))).get();
     final payments =
         ids.isEmpty ? <PaymentRow>[] : await (_db.select(_db.payments)..where((p) => p.orderId.isIn(ids))).get();
+    final cashSessions = await (_db.select(_db.cashSessions)..where((s) => s.status.equals('open'))).get();
     return {
       'type': 'snapshot',
       'hub': _identity.deviceCode,
       'orders': [for (final o in orders) o.toJson()],
       'lines': [for (final l in lines) l.toJson()],
       'payments': [for (final p in payments) p.toJson()],
+      // So each tablet knows whether ITS drawer is open.
+      'cashSessions': [for (final s in cashSessions) s.toJson()],
     };
   }
 

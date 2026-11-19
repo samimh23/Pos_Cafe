@@ -20,6 +20,7 @@ import 'package:pos_cafe/core/device/secret_store.dart';
 import 'package:pos_cafe/core/money/money.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
+import 'package:pos_cafe/features/cash/data/cash_repository.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
 
 import '../order_helpers.dart';
@@ -78,6 +79,7 @@ void main() {
       expect((await db.select(db.floorAreas).getSingle()).name, 'Salle');
       final products = {for (final p in await db.select(db.products).get()) p.name: p};
       final orders = OrderRepository(db, outbox);
+      await CashRepository(db, outbox, drawerId: identity.deviceId).open(const Money.dt(50));
 
       // Table 2: 2 Express + Jus = 6.400, customers move to table 3, pay half cash, half card.
       await orders.addProduct(products['Express']!, table: tables['2']);
@@ -89,18 +91,24 @@ void main() {
         order.id,
         const PaymentRequest.cash(amount: Money(3200), tendered: Money.dt(5)),
         deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
       );
       expect(half.remaining, const Money(3200));
       final rest = await orders.pay(
         order.id,
         const PaymentRequest.card(amount: Money(3200)),
         deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
       );
       expect(rest.closed, isTrue);
 
       // Counter: 1 Express, cash.
       await orders.addProduct(products['Express']!);
-      final counter = await orders.payCounterCash(tendered: const Money.dt(2), deviceCode: identity.deviceCode);
+      final counter = await orders.payCounterCash(
+        tendered: const Money.dt(2),
+        deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
+      );
 
       final pushed = await engine.pushPending();
       // ignore: avoid_print

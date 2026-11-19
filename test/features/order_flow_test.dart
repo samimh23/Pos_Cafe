@@ -100,6 +100,12 @@ void main() {
     // Pay with a 10 DT note
     await tester.tap(find.byKey(const Key('pay-cash')));
     await settle();
+    // First payment of the day: the POS asks to open the drawer (50 DT float).
+    expect(find.text('Ouvrir la caisse'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('float-50000')));
+    await settle();
+    await tester.tap(find.byKey(const Key('cash-open-confirm')));
+    await settle();
     await tester.tap(find.text('10.000 DT'));
     await settle();
     expect(tester.widget<Text>(find.byKey(const Key('cash-change'))).data, 'Rendu : 3.600 DT');

@@ -6,14 +6,14 @@ import 'tables.dart';
 part 'app_database.g.dart';
 
 /// The POS local database (SQLite). The UI reads from it; sync fills and empties it.
-@DriftDatabase(tables: [KvEntries, Categories, Products, OutboxEvents, Orders, OrderLines, Payments, StaffMembers, FloorAreas, DiningTables])
+@DriftDatabase(tables: [KvEntries, Categories, Products, OutboxEvents, Orders, OrderLines, Payments, StaffMembers, FloorAreas, DiningTables, CashSessions, CashMovements])
 class AppDatabase extends _$AppDatabase {
   /// Pass an executor in tests (`NativeDatabase.memory()`). [name] = SQLite file (one per POS profile).
   AppDatabase([QueryExecutor? executor, String name = 'pos_cafe']) : super(executor ?? driftDatabase(name: name));
 
   /// Bump when tables change, and add the upgrade step below.
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,6 +46,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 6 && from >= 2) {
         // v6: "Demander l'addition" from a server tablet
         await m.addColumn(orders, orders.billRequestedAt);
+      }
+      if (from < 7) {
+        // v7: cash sessions (opening float, movements, closing count)
+        await m.createTable(cashSessions);
+        await m.createTable(cashMovements);
+        if (from >= 2) await m.addColumn(payments, payments.drawerId);
       }
     },
   );

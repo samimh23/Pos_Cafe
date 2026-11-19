@@ -62,8 +62,10 @@ void main() {
         },
       );
       final ahmed =
-          (await owner.post('/v1/owner/branches/$branch/staff', data: {'name': 'Ahmed', 'role': 'server', 'pin': '2580'}))
-              .data;
+          (await owner.post(
+            '/v1/owner/branches/$branch/staff',
+            data: {'name': 'Ahmed', 'role': 'server', 'pin': '2580'},
+          )).data;
       Future<String> code(String role) async =>
           (await owner.post('/v1/owner/branches/$branch/pairing-codes', data: {'role': role})).data['code'];
 
@@ -121,17 +123,24 @@ void main() {
       final order = (await OrderRepository(hubDb, hubOutbox).watchOpenOrder(tableId: tables['2']!.id).first)!;
       await actions.requestBill(order.id);
       await expectLater(
-        actions.pay(order.id, const PaymentRequest.card(amount: Money(2400)), deviceCode: tabId.deviceCode),
+        actions.pay(
+          order.id,
+          const PaymentRequest.card(amount: Money(2400)),
+          deviceCode: tabId.deviceCode,
+          drawerId: tabId.deviceId,
+        ),
         throwsA(isA<OrderException>().having((e) => e.message, 'm', 'Cette caisse ne peut pas encaisser.')),
       );
 
       // The owner allows this tablet to take payments; both POS pick it up at their next sync.
       await owner.patch('/v1/owner/devices/${tabId.deviceId}', data: {'canTakePayments': true});
       await hubSync.syncNow();
+      await HubCashActions(client, staffId: () => ahmed['id'] as String).open(const Money.dt(20));
       final paid = await actions.pay(
         order.id,
         const PaymentRequest.cash(amount: Money(2400), tendered: Money.dt(5)),
         deviceCode: tabId.deviceCode,
+        drawerId: tabId.deviceId,
       );
       expect((paid.closed, paid.change), (true, const Money(2600)));
 
@@ -142,7 +151,9 @@ void main() {
 
       final list = (await owner.get('/v1/owner/branches/$branch/sales/orders?status=paid')).data as List;
       // ignore: avoid_print
-      print('Owner sees: ${list.map((o) => '${o['receiptNumber']} table=${o['tableName']} ${o['total']} by ${o['deviceCode']}')}');
+      print(
+        'Owner sees: ${list.map((o) => '${o['receiptNumber']} table=${o['tableName']} ${o['total']} by ${o['deviceCode']}')}',
+      );
       expect(list.single['tableName'], '2');
       expect(list.single['total'], 2400);
       expect(list.single['receiptNumber'], paid.receiptNumber);
