@@ -5,9 +5,11 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 
 import '../../features/cash/data/cash_repository.dart';
+import '../../features/loyalty/reward_actions.dart';
 import '../../features/order/data/discounts.dart';
 import '../../features/order/data/order_repository.dart';
 import '../../features/print/print_service.dart';
+import '../api/pos_api.dart';
 import '../print/printers.dart';
 import '../print/windows_printer.dart';
 import '../db/app_database.dart';
@@ -31,8 +33,10 @@ class HubServer {
     required Future<LanInfo?> Function() lanInfo,
     int port = HubProtocol.port,
     PrinterTransport printer = const AutoPrinterTransport(),
+    PosApi? api,
     DateTime Function()? clock,
   }) : _db = db,
+       _api = api,
        _outbox = outbox,
        _identity = identity,
        _lanInfo = lanInfo,
@@ -48,6 +52,9 @@ class HubServer {
   /// The printers are connected to the main POS; tablets print through it.
   final PrinterTransport _printer;
   final DateTime Function() _now;
+
+  /// For loyalty reward codes asked by tablets (the backend holds the points).
+  final PosApi? _api;
 
   /// 0 = any free port (tests).
   final int _requestedPort;
@@ -303,6 +310,15 @@ class HubServer {
               },
             },
           );
+        case 'reward_check' || 'reward_redeem':
+          final api = _api;
+          if (api == null) return (503, _error('La caisse principale ne peut pas joindre le serveur Kahwti.'));
+          final rewards = LocalRewardActions(api, repo);
+          final orderId = c['orderId'] as String;
+          final code = c['code'] as String;
+          final r =
+              c['action'] == 'reward_check' ? await rewards.check(orderId, code) : await rewards.redeem(orderId, code);
+          return (200, {'ok': true, 'result': r.toJson()});
         case 'cash_open' || 'cash_move' || 'cash_summary' || 'cash_close':
           return await _cash(device, staffId, c);
         default:

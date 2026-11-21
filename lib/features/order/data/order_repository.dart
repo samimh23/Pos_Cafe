@@ -9,6 +9,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/order_totals.dart';
 import '../../../core/sync/outbox_repository.dart';
 import '../../../core/sync/sync_event_types.dart';
+import '../../loyalty/loyalty_reward.dart';
 import 'discounts.dart';
 
 /// What the cashier asks for when paying (all or part of a ticket).
@@ -375,8 +376,19 @@ class OrderRepository implements OrderActions {
       }
     }
     if (lines.isEmpty) throw const OrderException('Aucun article à remiser.');
+    await _writeDiscount(orderId, lines, r.type, r.value, reason: r.reason, approver: approver);
+  });
 
-    // An amount on several lines is split in proportion to their price.
+  /// Writes a discount on [lines] (an amount on several lines is split in proportion to their price).
+  Future<void> _writeDiscount(
+    String orderId,
+    List<OrderLineRow> lines,
+    String type,
+    int value, {
+    required String reason,
+    required String? approver,
+  }) async {
+    final r = (type: type, value: value, reason: reason);
     final values =
         r.type == DiscountType.amount && lines.length > 1
             ? splitAmount(r.value, {for (final l in lines) l.id: lineGross(amountsOf(l)).millimes})
@@ -408,6 +420,67 @@ class OrderRepository implements OrderActions {
         ],
       },
     );
+  }
+
+  // ── Loyalty rewards ───────────────────────────────────────
+
+  /// How [reward] would go on the ticket, or why it can't (checked BEFORE the points are spent):
+  /// a free product needs that product on the ticket; an amount goes on the items without a discount.
+  Future<RewardPlan> planReward(String orderId, LoyaltyReward reward) async {
+    await _openOrder(orderId);
+    final lines =
+        await (_db.select(_db.orderLines)..where(
+          (l) => l.orderId.equals(orderId) & l.voided.equals(false) & l.paymentId.isNull() & l.discountType.isNull(),
+        )).get();
+    if (reward.kind == 'free_product') {
+      final matching = lines.where((l) => l.productId == reward.productId).toList();
+      if (matching.isEmpty) {
+        final p = await (_db.select(_db.products)..where((p) => p.id.equals(reward.productId ?? ''))).getSingleOrNull();
+        throw OrderException(
+          p == null
+              ? 'Le produit de cette récompense n’est pas dans le menu de la caisse.'
+              : 'Ajoutez d’abord « ${p.name} » au ticket, puis réessayez.',
+        );
+      }
+      // One unit offered: a whole line when it is exactly one plain item, else its unit price.
+      final line = matching.firstWhere((l) => l.qty == 1 && l.modifiersPrice == 0, orElse: () => matching.first);
+      final whole = line.qty == 1 && line.modifiersPrice == 0;
+      await _checkStillCoversPaid(orderId, -Money(line.unitPrice));
+      return RewardPlan(
+        lineIds: [line.id],
+        type: whole ? DiscountType.free : DiscountType.amount,
+        value: whole ? 0 : line.unitPrice,
+        description: '1 × ${line.name} offert',
+      );
+    }
+    final amount = reward.amount ?? 0;
+    if (amount <= 0) throw const OrderException('Récompense invalide.');
+    if (lines.isEmpty) throw const OrderException('Aucun article sans remise sur ce ticket.');
+    final gross = lines.fold(Money.zero, (s, l) => s + lineGross(amountsOf(l)));
+    final shares = splitAmount(amount, {for (final l in lines) l.id: lineGross(amountsOf(l)).millimes});
+    await _checkStillCoversPaid(
+      orderId,
+      OrderTotals.of([for (final l in lines) _withDiscount(l, DiscountType.amount, shares[l.id]!)]).total -
+          OrderTotals.of(lines.map(amountsOf)).total,
+    );
+    return RewardPlan(
+      lineIds: [for (final l in lines) l.id],
+      type: DiscountType.amount,
+      value: amount,
+      description:
+          amount > gross.millimes
+              ? 'Remise de $gross (le ticket est plus petit que ${Money(amount)})'
+              : 'Remise de ${Money(amount)} sur le ticket',
+    );
+  }
+
+  /// Puts the reward on the ticket (after the backend spent the points). No manager:
+  /// the code from the customer's app is the approval. Reason "loyalty" for the owner.
+  Future<RewardPlan> applyReward(String orderId, LoyaltyReward reward) => _db.transaction(() async {
+    final plan = await planReward(orderId, reward);
+    final lines = await (_db.select(_db.orderLines)..where((l) => l.id.isIn(plan.lineIds))).get();
+    await _writeDiscount(orderId, lines, plan.type, plan.value, reason: DiscountReasons.loyalty, approver: null);
+    return plan;
   });
 
   @override

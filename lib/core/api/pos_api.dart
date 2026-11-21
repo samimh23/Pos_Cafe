@@ -75,6 +75,12 @@ abstract class PosApi {
 
   /// Café details printed on receipts (name, matricule fiscal, address…).
   Future<Map<String, dynamic>> business();
+
+  /// A loyalty reward code from the customer's app: what it is (nothing spent).
+  Future<Map<String, dynamic>> checkReward(String code);
+
+  /// Spends the customer's points for that reward, on [orderId].
+  Future<Map<String, dynamic>> redeemReward(String code, {required String orderId});
 }
 
 class DioPosApi implements PosApi {
@@ -130,6 +136,15 @@ class DioPosApi implements PosApi {
 
   @override
   Future<Map<String, dynamic>> business() => _call(() => _dio.get('/v1/devices/business'));
+
+  @override
+  Future<Map<String, dynamic>> checkReward(String code) =>
+      _call(() => _dio.get('/v1/devices/loyalty/redemptions/${Uri.encodeComponent(code)}'));
+
+  @override
+  Future<Map<String, dynamic>> redeemReward(String code, {required String orderId}) => _call(
+    () => _dio.post('/v1/devices/loyalty/redemptions/${Uri.encodeComponent(code)}/redeem', data: {'orderId': orderId}),
+  );
 
   @override
   Future<void> reportLan(List<String> addresses, int port) =>

@@ -50,6 +50,25 @@ class FakePosApi implements PosApi {
     return businessInfo;
   }
 
+  /// Reward codes the "backend" knows (code → reward JSON); redeemed ones are removed.
+  final rewardCodes = <String, Map<String, dynamic>>{};
+  final redeemed = <(String, String)>[];
+
+  @override
+  Future<Map<String, dynamic>> checkReward(String code) async {
+    _maybeFail();
+    return rewardCodes[code] ??
+        (throw const ApiException('REDEMPTION_NOT_FOUND', 'Unknown or expired reward code', 404));
+  }
+
+  @override
+  Future<Map<String, dynamic>> redeemReward(String code, {required String orderId}) async {
+    final r = await checkReward(code);
+    rewardCodes.remove(code);
+    redeemed.add((code, orderId));
+    return r;
+  }
+
   @override
   Future<void> reportLan(List<String> addresses, int port) async {
     _maybeFail();

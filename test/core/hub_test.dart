@@ -11,6 +11,7 @@ import 'package:pos_cafe/core/lan/lan_auth.dart';
 import 'package:pos_cafe/core/lan/lan_info.dart';
 import 'package:pos_cafe/core/money/money.dart';
 import 'package:pos_cafe/core/print/printers.dart';
+import 'package:pos_cafe/features/loyalty/reward_actions.dart';
 import 'package:pos_cafe/features/print/print_service.dart';
 import 'package:pos_cafe/features/order/data/discounts.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
@@ -369,6 +370,50 @@ void main() {
     expect((await hubOutbox.pending()).last.approvedBy, 'staff-sonia');
     await eventually(
       () async => (await tabletDb.select(tabletDb.orderLines).getSingleOrNull())?.discountType == 'free',
+    );
+  });
+
+  test('loyalty code typed on a tablet: the Hub checks it with the backend, then applies it', () async {
+    // A Hub that can reach the backend.
+    await server.stop();
+    final api =
+        FakePosApi()
+          ..rewardCodes['424242'] = {
+            'id': 'red-1',
+            'rewardName': 'Un express offert',
+            'points': 10,
+            'kind': 'free_product',
+            'productId': 'p1',
+            'amount': null,
+            'customerName': 'Leila',
+          };
+    server = HubServer(db: hubDb, outbox: hubOutbox, identity: hubId, lanInfo: () async => info, port: 0, api: api);
+    await server.start();
+    info = lan();
+
+    final c = await connect(tablet, tabletDb);
+    await eventually(() async => c.link.connected);
+    await HubOrderActions(
+      c,
+      staffId: () => 'staff-ahmed',
+    ).addProduct(await express(tabletDb), table: await table(tabletDb, 'table-2'));
+    final orderId = (await hubOrderAt('table-2'))!.id;
+    final rewards = HubRewardActions(c, staffId: () => 'staff-ahmed');
+
+    final seen = await rewards.check(orderId, '424242');
+    expect((seen.reward.customerName, seen.description), ('Leila', '1 × Express offert'));
+    expect(api.redeemed, isEmpty);
+    await expectLater(
+      rewards.check(orderId, '000000'),
+      throwsA(isA<OrderException>().having((e) => e.message, 'm', contains('Code inconnu'))),
+    );
+
+    await rewards.redeem(orderId, '424242');
+    expect(api.redeemed, [('424242', orderId)]);
+    final line = (await OrderRepository(hubDb, hubOutbox).watchLines(orderId).first).single;
+    expect((line.discountType, line.discountReason), ('free', 'loyalty'));
+    await eventually(
+      () async => (await tabletDb.select(tabletDb.orderLines).getSingleOrNull())?.discountReason == 'loyalty',
     );
   });
 

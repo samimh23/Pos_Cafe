@@ -10,7 +10,10 @@ abstract final class DiscountReasons {
     'complaint': 'Réclamation client',
     'other': 'Autre',
   };
-  static String label(String? code) => labels[code] ?? (code ?? '');
+
+  /// A reward paid with loyalty points: no manager needed (the backend checked the code).
+  static const loyalty = 'loyalty';
+  static String label(String? code) => code == loyalty ? 'Fidélité' : labels[code] ?? (code ?? '');
 }
 
 /// What the cashier asks for: free / % / amount, on some lines or the whole ticket.

@@ -10,6 +10,7 @@ import '../../../core/money/order_totals.dart';
 import '../../cash/view/cash_screen.dart';
 import '../../cash/view_model/cash_view_model.dart';
 import '../../floor/view_model/floor_view_model.dart';
+import '../../loyalty/view/reward_dialog.dart';
 import '../../print/view/loyalty_qr_dialog.dart';
 import '../../print/print_providers.dart';
 import '../../../core/print/printers.dart';
@@ -67,6 +68,13 @@ class TicketPanel extends ConsumerWidget {
                     label: Text('Addition demandée'),
                     visualDensity: VisualDensity.compact,
                   ),
+                ),
+              if (ticket.unpaidLines.isNotEmpty && ticket.order != null)
+                IconButton(
+                  key: const Key('ticket-reward'),
+                  tooltip: 'Récompense fidélité (code client)',
+                  icon: const Icon(Icons.card_giftcard),
+                  onPressed: () => _reward(context, ref, ticket.order!.id),
                 ),
               if (ticket.unpaidLines.isNotEmpty)
                 IconButton(
@@ -430,6 +438,18 @@ class TicketPanel extends ConsumerWidget {
     } on OrderException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
+  }
+
+  /// The customer's code from the Kahwti app → the reward goes on the ticket (no manager needed).
+  Future<void> _reward(BuildContext context, WidgetRef ref, String orderId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final applied = await showRewardDialog(context, rewards: ref.read(rewardActionsProvider), orderId: orderId);
+    if (applied == null) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('🎁 ${applied.reward.rewardName} pour ${applied.reward.customerName} · ${applied.description}'),
+      ),
+    );
   }
 
   Future<void> _move(BuildContext context, OrderViewModel vm) async {

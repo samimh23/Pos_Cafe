@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/loyalty/reward_actions.dart';
 import '../../features/order/data/order_repository.dart';
 import '../../features/order/view_model/order_view_model.dart';
 import '../../features/print/print_providers.dart';
@@ -64,6 +65,7 @@ final hubServerProvider = Provider<HubServer?>((ref) {
     identity: identity,
     lanInfo: () => _readLanInfo(db),
     printer: ref.watch(printerTransportProvider),
+    api: ref.watch(posApiProvider),
   );
   Timer? report;
   var disposed = false;
@@ -166,4 +168,11 @@ final orderActionsProvider = Provider<OrderActions>((ref) {
   final client = ref.watch(hubClientProvider);
   if (client == null) return ref.watch(orderRepositoryProvider);
   return HubOrderActions(client, staffId: () => ref.read(staffSessionProvider)?.id);
+});
+
+/// Loyalty reward codes: here, or through the main POS on a server tablet.
+final rewardActionsProvider = Provider<RewardActions>((ref) {
+  final client = ref.watch(hubClientProvider);
+  if (client == null) return LocalRewardActions(ref.watch(posApiProvider), ref.watch(orderRepositoryProvider));
+  return HubRewardActions(client, staffId: () => ref.read(staffSessionProvider)?.id);
 });
