@@ -45,6 +45,7 @@ dependencies:
   # Windows USB receipt printers (print spooler, RAW mode). Already used by other plugins.
   ffi: ^2.2.0
   win32: ^5.13.0
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

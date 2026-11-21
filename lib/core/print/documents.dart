@@ -79,6 +79,7 @@ Uint8List receiptDocument({
   required Money total,
   required List<VatSplit> vat,
   required List<PrintPayment> payments,
+  String? loyaltyUrl,
 }) {
   final p = EscPos(width: width);
   _header(p, business);
@@ -112,6 +113,15 @@ Uint8List receiptDocument({
     for (final v in vat) {
       p.row('TVA ${v.label} (HT ${v.ht.toDecimalString()})', v.vat.toDecimalString());
     }
+  }
+  if (loyaltyUrl != null) {
+    p
+      ..separator()
+      ..bold()
+      ..text('Gagnez des points fidélité', at: EscPos.center)
+      ..bold(false)
+      ..text('Scannez ce code avec votre téléphone', at: EscPos.center)
+      ..qr(loyaltyUrl);
   }
   p
     ..separator()

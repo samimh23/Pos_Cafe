@@ -6,7 +6,17 @@ class BusinessInfo {
 
   final String businessName;
   final String? taxId, address, phone, receiptFooter;
-  const BusinessInfo({required this.businessName, this.taxId, this.address, this.phone, this.receiptFooter});
+
+  /// The café's loyalty program is on: receipts carry a QR to earn points.
+  final bool loyaltyEnabled;
+  const BusinessInfo({
+    required this.businessName,
+    this.taxId,
+    this.address,
+    this.phone,
+    this.receiptFooter,
+    this.loyaltyEnabled = false,
+  });
 
   factory BusinessInfo.fromJson(Map<String, dynamic> j) => BusinessInfo(
     businessName: (j['businessName'] as String?) ?? '',
@@ -14,6 +24,7 @@ class BusinessInfo {
     address: j['address'] as String?,
     phone: j['phone'] as String?,
     receiptFooter: j['receiptFooter'] as String?,
+    loyaltyEnabled: j['loyaltyEnabled'] == true,
   );
 
   static BusinessInfo? decode(String? s) =>

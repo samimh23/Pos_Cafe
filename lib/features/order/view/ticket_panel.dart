@@ -10,6 +10,7 @@ import '../../../core/money/order_totals.dart';
 import '../../cash/view/cash_screen.dart';
 import '../../cash/view_model/cash_view_model.dart';
 import '../../floor/view_model/floor_view_model.dart';
+import '../../print/view/loyalty_qr_dialog.dart';
 import '../../print/print_providers.dart';
 import '../../../core/print/printers.dart';
 import '../data/order_repository.dart';
@@ -398,6 +399,12 @@ class TicketPanel extends ConsumerWidget {
           printNote = ' · ${e.message}';
         }
       }
+      // No printed receipt: the loyalty QR can be shown on screen instead.
+      final loyaltyUrl =
+          r.closed && orderId != null && printNote != ' · ticket imprimé' && ref.read(posModeProvider) != PosMode.tablet
+              ? await ref.read(printServiceProvider).loyaltyUrl(orderId)
+              : null;
+      if (!context.mounted) return;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -407,7 +414,12 @@ class TicketPanel extends ConsumerWidget {
           ),
           duration: const Duration(seconds: 6),
           action:
-              r.closed && orderId != null && canPrint
+              loyaltyUrl != null && !canPrint
+                  ? SnackBarAction(
+                    label: 'QR fidélité',
+                    onPressed: () => showLoyaltyQr(context, url: loyaltyUrl, receiptNumber: r.receiptNumber ?? ''),
+                  )
+                  : r.closed && orderId != null && canPrint
                   ? SnackBarAction(
                     label: printNote == ' · ticket imprimé' ? 'Réimprimer' : 'Imprimer le ticket',
                     onPressed: () => printer.printReceipt(orderId).catchError((_) {}),

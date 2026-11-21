@@ -54,6 +54,21 @@ class EscPos {
 
   EscPos feed([int lines = 1]) => _cmd([0x1B, 0x64, lines]);
 
+  /// A QR code printed by the printer itself (GS ( k, model 2, error correction M),
+  /// centred. [size] = dots per module (1-16): 5 makes a ~3 cm code for a receipt URL.
+  EscPos qr(String data, {int size = 5}) {
+    final d = encode(data);
+    final n = d.length + 3;
+    return align(center)
+        ._cmd([0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]) // model 2
+        ._cmd([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, size.clamp(1, 16)]) // module size
+        ._cmd([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]) // error correction M
+        ._cmd([0x1D, 0x28, 0x6B, n & 0xFF, n >> 8, 0x31, 0x50, 0x30, ...d]) // store the data
+        ._cmd([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]) // print it
+        ._cmd([0x0A])
+        .align(left);
+  }
+
   /// Feeds the paper out and cuts (partial cut).
   EscPos cut() => feed(4)._cmd([0x1D, 0x56, 0x42, 0x00]);
 
@@ -157,6 +172,13 @@ List<List<String>> decodeEscPos(Uint8List bytes, {int width = 48}) {
         default: // ESC E n, ESC t n…
           i += 3;
       }
+    } else if (b == 0x1D && i + 4 < bytes.length && bytes[i + 1] == 0x28 && bytes[i + 2] == 0x6B) {
+      // GS ( k pL pH cn fn …: QR code. "Store data" (fn 0x50) is shown as [QR] <data>.
+      final n = bytes[i + 3] | (bytes[i + 4] << 8);
+      if (n >= 3 && bytes[i + 6] == 0x50) {
+        lines.add('[QR] ${String.fromCharCodes(bytes.sublist(i + 8, i + 5 + n))}');
+      }
+      i += 5 + n;
     } else if (b == 0x1D && i + 1 < bytes.length) {
       if (bytes[i + 1] == 0x21) big = bytes[i + 2] != 0;
       if (bytes[i + 1] == 0x56) {

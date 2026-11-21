@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/lan/hub_client.dart';
 import '../../core/lan/lan_providers.dart';
+import '../../core/loyalty/receipt_code.dart';
 import '../../core/print/printers.dart';
 import '../../core/print/windows_printer.dart';
 import '../../core/providers.dart';
@@ -18,6 +19,7 @@ final printServiceProvider = Provider<PrintService>(
     ref.watch(outboxRepositoryProvider),
     transport: ref.watch(printerTransportProvider),
     staffId: () => ref.read(staffSessionProvider)?.id,
+    loyalty: ReceiptSigner(ref.watch(secretStoreProvider), () => ref.read(deviceIdentityProvider).value?.deviceId),
   ),
 );
 

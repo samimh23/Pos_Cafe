@@ -9,6 +9,7 @@ import '../../../core/money/order_totals.dart';
 import '../../../core/print/printers.dart';
 import '../../../core/providers.dart';
 import '../../print/print_providers.dart';
+import '../../print/view/loyalty_qr_dialog.dart';
 import '../data/discounts.dart';
 import '../data/order_repository.dart';
 import '../view_model/order_view_model.dart';
@@ -76,6 +77,7 @@ class TicketsScreen extends ConsumerWidget {
     final db = ref.read(databaseProvider);
     final lines = await (db.select(db.orderLines)..where((l) => l.orderId.equals(o.id) & l.voided.equals(false))).get();
     final payments = await (db.select(db.payments)..where((p) => p.orderId.equals(o.id))).get();
+    final loyaltyUrl = await ref.read(printServiceProvider).loyaltyUrl(o.id);
     if (!context.mounted) return;
     final action = await showDialog<String>(
       context: context,
@@ -119,6 +121,13 @@ class TicketsScreen extends ConsumerWidget {
               ),
             ),
             actions: [
+              if (loyaltyUrl != null)
+                TextButton.icon(
+                  key: const Key('ticket-loyalty-qr'),
+                  icon: const Icon(Icons.qr_code_2),
+                  label: const Text('QR fidélité'),
+                  onPressed: () => Navigator.pop(c, 'loyalty'),
+                ),
               TextButton(
                 key: const Key('ticket-reprint'),
                 onPressed: () => Navigator.pop(c, o.status == 'refunded' ? 'print-refund' : 'reprint'),
@@ -148,6 +157,8 @@ class TicketsScreen extends ConsumerWidget {
     }
 
     switch (action) {
+      case 'loyalty':
+        await showLoyaltyQr(context, url: loyaltyUrl!, receiptNumber: o.receiptNumber ?? '');
       case 'reprint':
         await tryPrint(() => printer.printReceipt(o.id), 'Ticket réimprimé ✓');
       case 'print-refund':

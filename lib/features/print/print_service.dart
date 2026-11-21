@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../../core/db/app_database.dart';
 import '../../core/menu/modifiers.dart';
 import '../../core/money/money.dart';
+import '../../core/loyalty/receipt_code.dart';
 import '../../core/money/order_totals.dart';
 import '../../core/print/business_info.dart';
 import '../../core/print/documents.dart';
@@ -55,7 +56,9 @@ class PrintService implements PrintActions {
     PrinterTransport transport = const AutoPrinterTransport(),
     String? Function()? staffId,
     DateTime Function()? clock,
-  }) : _transport = transport,
+    ReceiptSigner? loyalty,
+  }) : _loyalty = loyalty,
+       _transport = transport,
        _staffId = staffId ?? (() => null),
        _now = clock ?? DateTime.now;
 
@@ -64,6 +67,23 @@ class PrintService implements PrintActions {
   final PrinterTransport _transport;
   final String? Function() _staffId;
   final DateTime Function() _now;
+  final ReceiptSigner? _loyalty;
+
+  /// The signed loyalty QR of a paid ticket, when the café's program is on.
+  Future<String?> loyaltyUrl(String orderId) async {
+    final business = await _business();
+    if (_loyalty == null || business == null || !business.loyaltyEnabled) return null;
+    final order = await _order(orderId);
+    if (order.receiptNumber == null || order.status != 'paid') return null;
+    final lines = await _lines(orderId);
+    final code = await _loyalty.code(
+      orderId: orderId,
+      receiptNumber: order.receiptNumber!,
+      total: OrderTotals.of(lines.map(amountsOf)).total,
+      at: order.closedAt ?? _now(),
+    );
+    return code == null ? null : ReceiptSigner.url(code);
+  }
 
   Future<PrinterSettings> settings() async => PrinterSettings.decode(await _db.getKv(PrinterSettings.kvKey));
   Future<void> saveSettings(PrinterSettings s) => _db.setKv(PrinterSettings.kvKey, s.encode());
@@ -238,9 +258,11 @@ class PrintService implements PrintActions {
     final lines = await _lines(orderId);
     final totals = OrderTotals.of(lines.map(amountsOf));
     final payments = await (_db.select(_db.payments)..where((p) => p.orderId.equals(orderId))).get();
+    final loyaltyUrl = await this.loyaltyUrl(orderId);
     await _transport.send(
       printer,
       receiptDocument(
+        loyaltyUrl: loyaltyUrl,
         width: printer.width,
         business: await _business(),
         receiptNumber: order.receiptNumber!,
