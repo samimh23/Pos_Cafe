@@ -92,7 +92,8 @@ class _RewardDialogState extends State<_RewardDialog> {
                   leading: const Icon(Icons.card_giftcard),
                   title: Text(checked.reward.rewardName),
                   subtitle: Text(
-                    '${checked.reward.customerName} · ${checked.reward.points} points\n${checked.description}',
+                    '${checked.reward.customerName} · '
+                    '${checked.reward.gift ? 'Cadeau du café' : '${checked.reward.points} points'}\n${checked.description}',
                   ),
                   isThreeLine: true,
                 ),
@@ -122,7 +123,13 @@ class _RewardDialogState extends State<_RewardDialog> {
             key: const Key('reward-apply'),
             icon: const Icon(Icons.check),
             onPressed: _busy ? null : _apply,
-            label: Text(_busy ? 'Un instant…' : 'Appliquer (−${checked.reward.points} pts)'),
+            label: Text(
+              _busy
+                  ? 'Un instant…'
+                  : checked.reward.gift
+                  ? 'Appliquer le cadeau'
+                  : 'Appliquer (−${checked.reward.points} pts)',
+            ),
           ),
       ],
     );

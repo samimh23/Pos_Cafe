@@ -647,7 +647,8 @@ class OrderRepository implements OrderActions {
         }
         amount = chosen.fold(Money.zero, (sum, l) => sum + lineTotal(amountsOf(l)));
       }
-      if (amount <= Money.zero || amount > remaining) {
+      // 0 DT only closes a ticket that is entirely offered (gift, "Offert").
+      if (amount.isNegative || amount > remaining || (amount.isZero && !remaining.isZero)) {
         throw OrderException('Montant invalide : il reste $remaining à payer.');
       }
       final tendered = req.method == 'card' ? amount : req.tendered;

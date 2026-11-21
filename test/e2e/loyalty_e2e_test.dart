@@ -177,6 +177,48 @@ void main() {
       expect(line, containsPair('discountReason', 'loyalty'));
       expect(line, containsPair('discount', 5000));
 
+      // ── Club + gift: Leila joins, the owner sees her and sends a free Cappuccino ──
+      expect(((await owner.get('/v1/owner/branches/$branch/club')).data['members'] as List), isEmpty); // not joined yet
+      await customer.put('/v1/customer/cafes/$branch/club', data: {'optIn': true});
+      final club = (await owner.get('/v1/owner/branches/$branch/club')).data;
+      final leila = (club['members'] as List).single;
+      // Two paid tickets scanned (T1 13.000 DT); T2 was refunded and doesn't count.
+      expect(leila, containsPair('name', 'Leila'));
+      expect(leila, containsPair('visits', 1));
+      expect(leila, containsPair('spent', 13000));
+      expect(leila, containsPair('points', 3));
+      final sent =
+          (await owner.post(
+            '/v1/owner/branches/$branch/gifts',
+            data: {
+              'customerIds': [leila['id']],
+              'name': 'Un cappuccino offert',
+              'kind': 'free_product',
+              'productId': cappuccino.id,
+              'validDays': 14,
+            },
+          )).data;
+      expect(sent['sent'], 1);
+      final gift = ((await customer.get('/v1/customer/gifts')).data as List).single;
+      final giftCode = (await customer.post('/v1/customer/gifts/${gift['id']}/code')).data['code'] as String;
+
+      await orders.addProduct(cappuccino);
+      final t5 = (await orders.watchOpenOrder().first)!.id;
+      final applied = await rewards.redeem(t5, giftCode);
+      expect(applied.reward.gift, isTrue);
+      await expectLater(rewards.redeem(t5, giftCode), throwsA(isA<OrderException>()));
+      await orders.pay(
+        t5,
+        const PaymentRequest.cash(amount: Money.zero, tendered: Money.zero),
+        deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
+      );
+      expect((await engine.pushPending()).rejected, 0);
+      final campaign = ((await owner.get('/v1/owner/branches/$branch/gifts')).data as List).single;
+      expect((campaign['sent'], campaign['used']), (1, 1));
+      expect((await customer.get('/v1/customer/points/$branch')).data['balance'], 3); // a gift costs no points
+      expect((await customer.get('/v1/customer/gifts')).data, isEmpty);
+
       await db.close();
     },
     skip: Platform.environment['E2E_LOYALTY'] == null ? 'set E2E_LOYALTY=1 to run against a real backend' : false,

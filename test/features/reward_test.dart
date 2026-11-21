@@ -11,6 +11,7 @@ import 'package:pos_cafe/core/money/money.dart';
 import 'package:pos_cafe/core/money/order_totals.dart';
 import 'package:pos_cafe/core/providers.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
+import 'package:pos_cafe/features/loyalty/loyalty_reward.dart';
 import 'package:pos_cafe/features/loyalty/reward_actions.dart';
 import 'package:pos_cafe/features/order/data/discounts.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
@@ -120,6 +121,25 @@ void main() {
       expect(id2, id);
       api.rewardCodes['222222'] = rewardJson(kind: 'amount_off', amount: 5000);
       await expectLater(rewards.check(id, '222222'), throwsA(isA<OrderException>())); // every item has a discount now
+    });
+
+    test('a gift from the café goes on the ticket the same way (no points)', () async {
+      final id = await ticket([express]);
+      api.rewardCodes['555555'] = {...rewardJson(points: 0, name: 'Cadeau : un express'), 'gift': true};
+      final seen = await rewards.check(id, '555555');
+      expect((seen.reward.gift, seen.reward.points), (true, 0));
+      await rewards.redeem(id, '555555');
+      expect(await total(id), Money.zero);
+      // Everything offered: the ticket closes at 0 DT with a receipt number.
+      final r = await orders.pay(
+        id,
+        const PaymentRequest.cash(amount: Money.zero, tendered: Money.zero),
+        deviceCode: 'T1',
+        drawerId: testDrawer,
+      );
+      expect(r.closed, isTrue);
+      expect(r.receiptNumber, 'T1-000001');
+      expect(RewardCheck.fromJson(seen.toJson()).reward.gift, isTrue); // survives the trip through the main POS
     });
 
     test('backend answers become clear messages; offline says so', () async {

@@ -7,6 +7,9 @@ class LoyaltyReward {
   final String? productId;
   final int? amount;
 
+  /// A gift the café sent to this customer (no points spent).
+  final bool gift;
+
   const LoyaltyReward({
     required this.id,
     required this.rewardName,
@@ -15,6 +18,7 @@ class LoyaltyReward {
     required this.points,
     this.productId,
     this.amount,
+    this.gift = false,
   });
 
   factory LoyaltyReward.fromJson(Map<String, dynamic> j) => LoyaltyReward(
@@ -25,6 +29,7 @@ class LoyaltyReward {
     points: j['points'] as int,
     productId: j['productId'] as String?,
     amount: j['amount'] as int?,
+    gift: j['gift'] == true,
   );
 
   Map<String, Object?> toJson() => {
@@ -35,6 +40,7 @@ class LoyaltyReward {
     'points': points,
     'productId': productId,
     'amount': amount,
+    'gift': gift,
   };
 }
 
