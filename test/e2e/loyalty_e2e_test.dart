@@ -24,6 +24,7 @@ import 'package:pos_cafe/core/print/printers.dart';
 import 'package:pos_cafe/core/sync/outbox_repository.dart';
 import 'package:pos_cafe/core/sync/sync_engine.dart';
 import 'package:pos_cafe/features/cash/data/cash_repository.dart';
+import 'package:pos_cafe/features/loyalty/reward_actions.dart';
 import 'package:pos_cafe/features/order/data/discounts.dart';
 import 'package:pos_cafe/features/order/data/order_repository.dart';
 import 'package:pos_cafe/features/print/print_service.dart';
@@ -149,6 +150,32 @@ void main() {
       expect(cafe['balance'], 13);
       expect((cafe['history'] as List).map((h) => h['points']), containsAll([13, 13, -13]));
       expect(t1, isNotEmpty);
+
+      // ── Spending points: "5 DT de remise" (10 pts) at the counter ──
+      final rewardId = ((await owner.get('/v1/owner/branches/$branch/loyalty')).data['rewards'] as List).single['id'];
+      final redemption =
+          (await customer.post('/v1/customer/points/$branch/redemptions', data: {'rewardId': rewardId})).data;
+      expect(redemption['code'], matches(RegExp(r'^\d{6}$')));
+
+      await orders.addProduct(cappuccino);
+      final t4 = (await orders.watchOpenOrder().first)!.id;
+      final rewards = LocalRewardActions(api, orders);
+      final seen = await rewards.check(t4, redemption['code'] as String);
+      expect(seen.reward.customerName, 'Leila');
+      expect((await customer.get('/v1/customer/points/$branch')).data['balance'], 13); // nothing spent yet
+      await rewards.redeem(t4, redemption['code'] as String);
+      await expectLater(rewards.redeem(t4, redemption['code'] as String), throwsA(isA<OrderException>()));
+      await orders.pay(
+        t4,
+        const PaymentRequest.card(amount: Money(1500)), // 6.500 − 5.000
+        deviceCode: identity.deviceCode,
+        drawerId: identity.deviceId,
+      );
+      expect((await engine.pushPending()).rejected, 0);
+      expect((await customer.get('/v1/customer/points/$branch')).data['balance'], 3);
+      final line = ((await owner.get('/v1/owner/orders/$t4')).data['lines'] as List).single;
+      expect(line, containsPair('discountReason', 'loyalty'));
+      expect(line, containsPair('discount', 5000));
 
       await db.close();
     },
