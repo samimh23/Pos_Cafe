@@ -219,6 +219,39 @@ void main() {
       expect((await customer.get('/v1/customer/points/$branch')).data['balance'], 3); // a gift costs no points
       expect((await customer.get('/v1/customer/gifts')).data, isEmpty);
 
+      // ── Monthly milestones: this month Leila paid 13 DT (T1; T2 was refunded) ──
+      await owner.put(
+        '/v1/owner/branches/$branch/loyalty',
+        data: {
+          'enabled': true,
+          'pointsEnabled': true,
+          'pointsPerDinar': 1,
+          'rewards': [
+            {'id': rewardId, 'name': '5 DT de remise', 'points': 10, 'kind': 'amount_off', 'amount': 5000},
+          ],
+          'milestonesEnabled': true,
+          'milestones': [
+            {'spend': 30000, 'kind': 'points', 'points': 5},
+            {'spend': 40000, 'kind': 'free_product', 'productId': cappuccino.id, 'name': 'Un cappuccino offert'},
+          ],
+        },
+      );
+      final (_, code6) = await sell(); // 13 DT → 26 DT this month
+      final (_, code7) = await sell(); // → 39 DT: 30 DT reached
+      expect((await engine.pushPending()).rejected, 0);
+      expect((await customer.post('/v1/customer/claims', data: {'code': code6})).data['bonuses'], isEmpty);
+      final c7 = (await customer.post('/v1/customer/claims', data: {'code': code7})).data;
+      expect(c7['bonuses'], ['+5 points']);
+      final (_, code8) = await sell(); // → 52 DT: 40 DT reached
+      expect((await engine.pushPending()).rejected, 0);
+      final c8 = (await customer.post('/v1/customer/claims', data: {'code': code8})).data;
+      expect(c8['bonuses'], ['Un cappuccino offert']);
+      final mine = (await customer.get('/v1/customer/points/$branch')).data;
+      expect(mine['monthSpent'], 52000);
+      expect(((await customer.get('/v1/customer/gifts')).data as List).single['name'], 'Un cappuccino offert');
+      // The milestone gift is not one of the owner's campaigns.
+      expect(((await owner.get('/v1/owner/branches/$branch/gifts')).data as List).length, 1);
+
       await db.close();
     },
     skip: Platform.environment['E2E_LOYALTY'] == null ? 'set E2E_LOYALTY=1 to run against a real backend' : false,
